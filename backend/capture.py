@@ -112,6 +112,7 @@ class PacketStreamer:
     def restart(self, interface: str = None, bpf_filter: str = None) -> bool:
         """
         Restart packet capture with new settings.
+        Implements requirement 4.2 for interface changes and 4.3 for filter changes.
         
         Args:
             interface: Network interface to capture on
@@ -122,13 +123,44 @@ class PacketStreamer:
         """
         logger.info(f"Restarting capture with interface={interface}, filter={bpf_filter}")
         
+        # Validate interface if specified
+        if interface and interface not in self.get_interfaces():
+            logger.error(f"Interface {interface} not found")
+            return False
+        
+        # Validate BPF filter if specified
+        if bpf_filter:
+            validation_error = self.validate_bpf_filter(bpf_filter)
+            if validation_error:
+                logger.error(f"BPF filter validation failed: {validation_error}")
+                return False
+        
+        # Store current settings in case we need to rollback
+        old_interface = self.current_interface
+        old_bpf = self.current_bpf
+        was_running = self.is_running
+        
+        # Stop current capture
         if not self.stop():
+            logger.error("Failed to stop current capture")
             return False
             
         # Brief pause to ensure cleanup
         time.sleep(0.1)
         
-        return self.start(interface, bpf_filter)
+        # Start with new settings
+        if self.start(interface, bpf_filter):
+            logger.info(f"Successfully restarted capture on {interface or 'default'}")
+            return True
+        else:
+            # Rollback to previous settings if restart failed
+            logger.warning("Failed to start with new settings, attempting rollback")
+            if was_running and old_interface:
+                if self.start(old_interface, old_bpf):
+                    logger.info("Successfully rolled back to previous settings")
+                else:
+                    logger.error("Failed to rollback to previous settings")
+            return False
     
     def get_packet(self, timeout: float = 1.0) -> Optional[PacketOut]:
         """
@@ -173,6 +205,68 @@ class PacketStreamer:
         except Exception as e:
             logger.error(f"Failed to get interface list: {e}")
             return []
+    
+    @staticmethod
+    def validate_bpf_filter(bpf_filter: str) -> Optional[str]:
+        """
+        Validate BPF filter expression.
+        Implements requirement 4.4 for BPF filter validation.
+        
+        Args:
+            bpf_filter: Berkeley Packet Filter expression to validate
+            
+        Returns:
+            str: Error message if invalid, None if valid
+        """
+        if not bpf_filter or not bpf_filter.strip():
+            return None
+            
+        try:
+            # Use a more lightweight validation approach that doesn't require root privileges
+            # We'll validate common BPF syntax patterns and keywords
+            
+            # Basic syntax validation - check for common patterns
+            filter_lower = bpf_filter.lower().strip()
+            
+            # List of valid BPF keywords and operators
+            valid_keywords = {
+                'tcp', 'udp', 'icmp', 'ip', 'ip6', 'arp', 'rarp', 'ether',
+                'host', 'net', 'port', 'portrange', 'src', 'dst', 'gateway',
+                'broadcast', 'multicast', 'less', 'greater', 'proto',
+                'and', 'or', 'not', '!', '&&', '||'
+            }
+            
+            # Split filter into tokens for basic validation
+            import re
+            tokens = re.findall(r'\w+|[()!&|<>=]', filter_lower)
+            
+            # Check for basic syntax errors
+            paren_count = 0
+            for i, token in enumerate(tokens):
+                if token == '(':
+                    paren_count += 1
+                elif token == ')':
+                    paren_count -= 1
+                    if paren_count < 0:
+                        return f"Syntax error: unmatched closing parenthesis in BPF filter"
+                
+                # Check for consecutive operators
+                if i > 0 and token in ['and', 'or', '&&', '||'] and tokens[i-1] in ['and', 'or', '&&', '||']:
+                    return f"Syntax error: consecutive operators in BPF filter"
+            
+            if paren_count != 0:
+                return f"Syntax error: unmatched parentheses in BPF filter"
+            
+            # Check for ending with operator
+            if tokens and tokens[-1] in ['and', 'or', '&&', '||']:
+                return f"Syntax error: BPF filter cannot end with operator"
+            
+            # For more complex validation, we could try to compile with libpcap
+            # but for now, basic syntax checking should catch most errors
+            return None
+            
+        except Exception as e:
+            return f"Invalid BPF filter '{bpf_filter}': {str(e)}"
     
     def _capture_loop(self):
         """

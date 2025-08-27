@@ -350,5 +350,177 @@ class TestPacketCallback:
             assert self.streamer.packet_queue.qsize() == 0
 
 
+class TestBPFValidation:
+    """Test cases for BPF filter validation functionality."""
+    
+    def test_validate_bpf_filter_valid_filters(self):
+        """Test validation of valid BPF filters."""
+        valid_filters = [
+            "tcp",
+            "udp",
+            "icmp",
+            "port 80",
+            "host 192.168.1.1",
+            "tcp and port 443",
+            "udp or icmp",
+            "src host 10.0.0.1",
+            "dst port 53",
+            "tcp port 80 or tcp port 443"
+        ]
+        
+        for filter_expr in valid_filters:
+            result = PacketStreamer.validate_bpf_filter(filter_expr)
+            assert result is None, f"Filter '{filter_expr}' should be valid but got error: {result}"
+    
+    def test_validate_bpf_filter_invalid_filters(self):
+        """Test validation of invalid BPF filters."""
+        invalid_filters = [
+            "tcp and and port 80",  # consecutive operators
+            "port 80 and",          # ending with operator
+            "((tcp)",               # unmatched parentheses
+            "tcp))",                # unmatched closing parenthesis
+        ]
+        
+        for filter_expr in invalid_filters:
+            result = PacketStreamer.validate_bpf_filter(filter_expr)
+            assert result is not None, f"Filter '{filter_expr}' should be invalid but validation passed"
+            assert isinstance(result, str), "Error message should be a string"
+    
+    def test_validate_bpf_filter_empty(self):
+        """Test validation of empty/None BPF filters."""
+        assert PacketStreamer.validate_bpf_filter("") is None
+        assert PacketStreamer.validate_bpf_filter("   ") is None
+        assert PacketStreamer.validate_bpf_filter(None) is None
+    
+    def test_validate_bpf_filter_exception_handling(self):
+        """Test BPF validation exception handling."""
+        # Test with a filter that might cause internal errors
+        # For now, our basic validation shouldn't throw exceptions
+        result = PacketStreamer.validate_bpf_filter("tcp port 80")
+        assert result is None  # Should be valid
+        
+        # Test edge case that might cause issues
+        result = PacketStreamer.validate_bpf_filter("tcp and or udp")
+        assert result is not None  # Should catch consecutive operators
+
+
+class TestEnhancedRestart:
+    """Test cases for enhanced restart functionality."""
+    
+    def setup_method(self):
+        """Setup test fixtures."""
+        self.streamer = PacketStreamer()
+    
+    def teardown_method(self):
+        """Cleanup after tests."""
+        if self.streamer.is_running:
+            self.streamer.stop()
+    
+    @patch('capture.get_if_list')
+    @patch.object(PacketStreamer, 'validate_bpf_filter')
+    @patch.object(PacketStreamer, 'stop')
+    @patch.object(PacketStreamer, 'start')
+    def test_restart_success(self, mock_start, mock_stop, mock_validate, mock_get_if_list):
+        """Test successful restart with new settings."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        mock_validate.return_value = None  # Valid filter
+        mock_stop.return_value = True
+        mock_start.return_value = True
+        
+        result = self.streamer.restart('eth0', 'tcp port 80')
+        
+        assert result is True
+        mock_validate.assert_called_once_with('tcp port 80')
+        mock_stop.assert_called_once()
+        mock_start.assert_called_once_with('eth0', 'tcp port 80')
+    
+    @patch('capture.get_if_list')
+    def test_restart_invalid_interface(self, mock_get_if_list):
+        """Test restart with invalid interface."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        
+        result = self.streamer.restart('invalid_interface', None)
+        
+        assert result is False
+    
+    @patch('capture.get_if_list')
+    @patch.object(PacketStreamer, 'validate_bpf_filter')
+    def test_restart_invalid_bpf_filter(self, mock_validate, mock_get_if_list):
+        """Test restart with invalid BPF filter."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        mock_validate.return_value = "Invalid filter syntax"
+        
+        result = self.streamer.restart('eth0', 'invalid filter')
+        
+        assert result is False
+        mock_validate.assert_called_once_with('invalid filter')
+    
+    @patch('capture.get_if_list')
+    @patch.object(PacketStreamer, 'validate_bpf_filter')
+    @patch.object(PacketStreamer, 'stop')
+    @patch.object(PacketStreamer, 'start')
+    def test_restart_stop_failure(self, mock_start, mock_stop, mock_validate, mock_get_if_list):
+        """Test restart when stop fails."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        mock_validate.return_value = None
+        mock_stop.return_value = False
+        
+        result = self.streamer.restart('eth0', 'tcp')
+        
+        assert result is False
+        mock_stop.assert_called_once()
+        mock_start.assert_not_called()
+    
+    @patch('capture.get_if_list')
+    @patch.object(PacketStreamer, 'validate_bpf_filter')
+    @patch.object(PacketStreamer, 'stop')
+    @patch.object(PacketStreamer, 'start')
+    def test_restart_start_failure_with_rollback(self, mock_start, mock_stop, mock_validate, mock_get_if_list):
+        """Test restart with start failure and successful rollback."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        mock_validate.return_value = None
+        mock_stop.return_value = True
+        
+        # Set up initial state
+        self.streamer.current_interface = 'lo'
+        self.streamer.current_bpf = 'udp'
+        self.streamer.is_running = True
+        
+        # First start call (new settings) fails, second call (rollback) succeeds
+        mock_start.side_effect = [False, True]
+        
+        result = self.streamer.restart('eth0', 'tcp')
+        
+        assert result is False
+        assert mock_start.call_count == 2
+        # First call with new settings
+        mock_start.assert_any_call('eth0', 'tcp')
+        # Second call with rollback settings
+        mock_start.assert_any_call('lo', 'udp')
+    
+    @patch('capture.get_if_list')
+    @patch.object(PacketStreamer, 'validate_bpf_filter')
+    @patch.object(PacketStreamer, 'stop')
+    @patch.object(PacketStreamer, 'start')
+    def test_restart_start_failure_rollback_failure(self, mock_start, mock_stop, mock_validate, mock_get_if_list):
+        """Test restart with start failure and rollback failure."""
+        mock_get_if_list.return_value = ['eth0', 'lo']
+        mock_validate.return_value = None
+        mock_stop.return_value = True
+        
+        # Set up initial state
+        self.streamer.current_interface = 'lo'
+        self.streamer.current_bpf = 'udp'
+        self.streamer.is_running = True
+        
+        # Both start calls fail
+        mock_start.return_value = False
+        
+        result = self.streamer.restart('eth0', 'tcp')
+        
+        assert result is False
+        assert mock_start.call_count == 2
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

@@ -21,7 +21,7 @@
   - Write tests for WebSocket connection handling and broadcasting
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 4. Add network interface and BPF filter management
+- [x] 4. Add network interface and BPF filter management
   - Implement GET /interfaces endpoint to list available network interfaces
   - Create POST /capture/settings endpoint for dynamic configuration
   - Add restart functionality to PacketStreamer for interface/filter changes

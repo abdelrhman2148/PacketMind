@@ -6,6 +6,7 @@ Implements requirements 2.1, 2.2, 2.3, 2.4, 2.5 for WebSocket packet streaming.
 import asyncio
 import json
 import logging
+import time
 from typing import List, Set
 from contextlib import asynccontextmanager
 
@@ -13,7 +14,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from models import PacketOut, NetworkInterface, SystemStatus
+from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings
 from capture import PacketStreamer
 
 # Configure logging
@@ -187,6 +188,61 @@ async def get_interfaces():
     except Exception as e:
         logger.error(f"Failed to get interfaces: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve network interfaces")
+
+@app.post("/capture/settings")
+async def update_capture_settings(settings: CaptureSettings):
+    """
+    Update packet capture settings (interface and BPF filter).
+    Implements requirements 4.2, 4.3, 4.4 for dynamic configuration.
+    """
+    try:
+        # Validate interface exists
+        available_interfaces = PacketStreamer.get_interfaces()
+        if settings.iface not in available_interfaces:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Interface '{settings.iface}' not found. Available: {available_interfaces}"
+            )
+        
+        # Validate BPF filter if provided
+        if settings.bpf:
+            validation_error = PacketStreamer.validate_bpf_filter(settings.bpf)
+            if validation_error:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid BPF filter: {validation_error}"
+                )
+        
+        # Restart capture with new settings
+        success = packet_streamer.restart(settings.iface, settings.bpf)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to restart packet capture with new settings"
+            )
+        
+        # Notify connected clients of configuration change
+        config_message = {
+            "type": "config_change",
+            "interface": settings.iface,
+            "bpf_filter": settings.bpf or "",
+            "timestamp": time.time()
+        }
+        await manager.broadcast(json.dumps(config_message))
+        
+        return {
+            "status": "success",
+            "message": "Capture settings updated successfully",
+            "interface": settings.iface,
+            "bpf_filter": settings.bpf
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update capture settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update capture settings")
 
 @app.get("/status", response_model=SystemStatus)
 async def get_status():
