@@ -13,7 +13,7 @@
   - Write unit tests for packet processing with various protocol types
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 3. Build FastAPI backend with WebSocket streaming
+- [x] 3. Build FastAPI backend with WebSocket streaming
   - Create FastAPI application with CORS middleware
   - Implement WebSocket endpoint for real-time packet streaming
   - Add async broadcaster to distribute packets to connected clients
