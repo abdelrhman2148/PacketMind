@@ -6,6 +6,7 @@ Implements requirements 2.1, 2.2, 2.3, 2.4, 2.5 for WebSocket packet streaming.
 import asyncio
 import json
 import logging
+import os
 import time
 from typing import List, Set
 from contextlib import asynccontextmanager
@@ -14,12 +15,31 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings
+from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings, ExplainIn, ExplainOut
 from capture import PacketStreamer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# AI service configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+USE_MOCK_AI = os.getenv("USE_MOCK_AI", "true").lower() == "true"
+AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "20"))  # 20 second timeout
+
+# Initialize OpenAI client if API key is available
+openai_client = None
+if OPENAI_API_KEY and not USE_MOCK_AI:
+    try:
+        import openai
+        openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        logger.info("OpenAI client initialized successfully")
+    except ImportError:
+        logger.warning("OpenAI package not available, falling back to mock responses")
+    except Exception as e:
+        logger.warning(f"Failed to initialize OpenAI client: {e}, falling back to mock responses")
+else:
+    logger.info("Using mock AI responses (no API key provided or USE_MOCK_AI=true)")
 
 # Global packet streamer instance
 packet_streamer = PacketStreamer()
@@ -81,6 +101,100 @@ class ConnectionManager:
 
 # Global connection manager
 manager = ConnectionManager()
+
+# AI Analysis Functions
+async def get_mock_ai_explanation(packet_summary: str) -> str:
+    """
+    Generate mock AI explanation for development purposes.
+    Implements requirement 3.4 for mock responses without API keys.
+    """
+    # Simple pattern matching for common packet types
+    summary_lower = packet_summary.lower()
+    
+    if "tcp" in summary_lower and "443" in packet_summary:
+        return ("This appears to be HTTPS traffic on port 443. This is normal encrypted web traffic, "
+                "commonly used for secure web browsing. The TCP protocol ensures reliable delivery of data. "
+                "No security concerns detected.")
+    
+    elif "tcp" in summary_lower and "80" in packet_summary:
+        return ("This is HTTP traffic on port 80. This is unencrypted web traffic which could potentially "
+                "expose sensitive information. Consider using HTTPS (port 443) for better security. "
+                "The TCP protocol ensures reliable delivery.")
+    
+    elif "udp" in summary_lower and "53" in packet_summary:
+        return ("This is DNS traffic on port 53 using UDP protocol. DNS queries are used to resolve "
+                "domain names to IP addresses. This is normal network behavior, though DNS queries "
+                "can sometimes reveal browsing patterns.")
+    
+    elif "icmp" in summary_lower:
+        return ("This is an ICMP packet, commonly used for network diagnostics like ping commands. "
+                "ICMP packets are generally harmless but can sometimes be used for network reconnaissance. "
+                "Monitor for unusual ICMP patterns.")
+    
+    elif "udp" in summary_lower:
+        return ("This is UDP traffic. UDP is a connectionless protocol often used for streaming, "
+                "gaming, or real-time applications. Unlike TCP, UDP doesn't guarantee delivery. "
+                "Check the destination port to understand the specific service.")
+    
+    elif "tcp" in summary_lower:
+        return ("This is TCP traffic. TCP is a reliable, connection-oriented protocol used for most "
+                "web services and applications. The specific port number can help identify the service. "
+                "Generally safe unless communicating with suspicious destinations.")
+    
+    else:
+        return ("This packet uses a protocol that requires further analysis. Check the source and "
+                "destination addresses for any suspicious patterns. Monitor for unusual traffic volumes "
+                "or connections to unknown hosts. Consider the context of your network environment.")
+
+async def get_openai_explanation(packet_summary: str, context: str = None) -> str:
+    """
+    Get AI explanation from OpenAI API.
+    Implements requirements 3.1, 3.2, 3.3 for OpenAI integration.
+    """
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="OpenAI service not available")
+    
+    try:
+        # Construct the prompt
+        prompt = f"""Analyze this network packet and provide a concise, actionable explanation:
+
+Packet Summary: {packet_summary}
+{f"Additional Context: {context}" if context else ""}
+
+Please provide:
+1. What type of traffic this is
+2. Whether it's normal or potentially suspicious
+3. Any security implications
+4. Brief explanation of the protocol used
+
+Keep the response under 200 words and focus on practical insights for network monitoring."""
+
+        # Make API call with timeout
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                openai_client.chat.completions.create,
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a network security expert helping analyze network packets."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300,
+                temperature=0.3
+            ),
+            timeout=AI_TIMEOUT
+        )
+        
+        return response.choices[0].message.content.strip()
+        
+    except asyncio.TimeoutError:
+        logger.error("OpenAI API request timed out")
+        raise HTTPException(status_code=504, detail="AI analysis request timed out")
+    
+    except Exception as e:
+        logger.error(f"OpenAI API error: {e}")
+        # Fall back to mock response on API error
+        logger.info("Falling back to mock AI response due to API error")
+        return await get_mock_ai_explanation(packet_summary)
 
 # Background task for packet broadcasting
 async def packet_broadcaster():
@@ -261,6 +375,51 @@ async def get_status():
     except Exception as e:
         logger.error(f"Failed to get status: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve system status")
+
+@app.post("/ai/explain", response_model=ExplainOut)
+async def explain_packet(request: ExplainIn):
+    """
+    Analyze a packet using AI and provide explanation.
+    Implements requirements 3.1, 3.2, 3.3, 3.4, 3.5 for AI packet analysis.
+    """
+    try:
+        # Validate input
+        if not request.summary or not request.summary.strip():
+            raise HTTPException(status_code=400, detail="Packet summary is required")
+        
+        # Determine whether to use OpenAI or mock response
+        use_mock = USE_MOCK_AI or not openai_client
+        
+        if use_mock:
+            # Use mock AI response
+            explanation = await get_mock_ai_explanation(request.summary)
+            is_mock = True
+            logger.info("Generated mock AI explanation for packet analysis")
+        else:
+            # Use OpenAI API
+            explanation = await get_openai_explanation(request.summary, request.context)
+            is_mock = False
+            logger.info("Generated OpenAI explanation for packet analysis")
+        
+        return ExplainOut(
+            explanation=explanation,
+            is_mock=is_mock
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to explain packet: {e}")
+        # Fall back to mock response on unexpected errors
+        try:
+            explanation = await get_mock_ai_explanation(request.summary)
+            return ExplainOut(
+                explanation=explanation,
+                is_mock=True
+            )
+        except Exception as fallback_error:
+            logger.error(f"Fallback explanation also failed: {fallback_error}")
+            raise HTTPException(status_code=500, detail="Failed to generate packet explanation")
 
 @app.websocket("/ws/packets")
 async def websocket_endpoint(websocket: WebSocket):
