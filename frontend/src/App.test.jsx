@@ -503,4 +503,345 @@ describe('App Component', () => {
     expect(explainButton).toBeDisabled()
     expect(screen.getByText('Analyzing...')).toBeInTheDocument()
   })
+
+  describe('Configuration Controls', () => {
+    it('renders capture settings section', () => {
+      render(<App />)
+      
+      expect(screen.getByText('Capture Settings')).toBeInTheDocument()
+      expect(screen.getByLabelText('Network Interface:')).toBeInTheDocument()
+      expect(screen.getByLabelText('BPF Filter:')).toBeInTheDocument()
+      expect(screen.getByText('Apply Settings')).toBeInTheDocument()
+    })
+
+    it('loads and displays network interfaces on mount', async () => {
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' },
+        { name: 'wlan0', description: 'Wireless adapter' },
+        { name: 'lo', description: 'Loopback interface' }
+      ]
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith('http://localhost:8000/interfaces', {
+          method: 'GET',
+          signal: expect.any(AbortSignal)
+        })
+      })
+
+      await waitFor(() => {
+        const interfaceSelect = screen.getByLabelText('Network Interface:')
+        expect(interfaceSelect).toBeInTheDocument()
+        
+        // Check that interfaces are populated
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+        expect(screen.getByText('wlan0 (Wireless adapter)')).toBeInTheDocument()
+        expect(screen.getByText('lo (Loopback interface)')).toBeInTheDocument()
+      })
+    })
+
+    it('handles interface loading errors gracefully', async () => {
+      global.fetch.mockRejectedValueOnce(new Error('Network error'))
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Error: Failed to load network interfaces')).toBeInTheDocument()
+      })
+    })
+
+    it('allows user to select interface and enter BPF filter', async () => {
+      const user = userEvent.setup()
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' },
+        { name: 'wlan0', description: 'Wireless adapter' }
+      ]
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Select interface
+      const interfaceSelect = screen.getByLabelText('Network Interface:')
+      await user.selectOptions(interfaceSelect, 'wlan0')
+      expect(interfaceSelect.value).toBe('wlan0')
+
+      // Enter BPF filter
+      const bpfInput = screen.getByLabelText('BPF Filter:')
+      await user.type(bpfInput, 'port 80 or tcp')
+      expect(bpfInput.value).toBe('port 80 or tcp')
+    })
+
+    it('applies capture settings when button is clicked', async () => {
+      const user = userEvent.setup()
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      // Mock interfaces response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      // Mock settings update response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'success',
+          message: 'Capture settings updated successfully'
+        })
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Select interface and enter filter
+      const interfaceSelect = screen.getByLabelText('Network Interface:')
+      await user.selectOptions(interfaceSelect, 'eth0')
+
+      const bpfInput = screen.getByLabelText('BPF Filter:')
+      await user.type(bpfInput, 'port 443')
+
+      // Click apply button
+      const applyButton = screen.getByText('Apply Settings')
+      await user.click(applyButton)
+
+      // Check loading state
+      expect(screen.getByText('Applying...')).toBeInTheDocument()
+      expect(applyButton).toBeDisabled()
+
+      // Wait for settings to be applied
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith('http://localhost:8000/capture/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            iface: 'eth0',
+            bpf: 'port 443'
+          }),
+          signal: expect.any(AbortSignal)
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Current: Interface: eth0, Filter: port 443')).toBeInTheDocument()
+        expect(applyButton).not.toBeDisabled()
+        expect(screen.getByText('Apply Settings')).toBeInTheDocument()
+      })
+    })
+
+    it('handles capture settings update errors', async () => {
+      const user = userEvent.setup()
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      // Mock interfaces response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      // Mock settings update error
+      global.fetch.mockRejectedValueOnce(new Error('Invalid BPF filter syntax'))
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Select interface
+      const interfaceSelect = screen.getByLabelText('Network Interface:')
+      await user.selectOptions(interfaceSelect, 'eth0')
+
+      // Click apply button
+      const applyButton = screen.getByText('Apply Settings')
+      await user.click(applyButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Error: Invalid BPF filter syntax')).toBeInTheDocument()
+        expect(applyButton).not.toBeDisabled()
+      })
+    })
+
+    it('disables apply button when no interface is selected', async () => {
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Initially should have first interface selected and button enabled
+      const applyButton = screen.getByText('Apply Settings')
+      expect(applyButton).not.toBeDisabled()
+
+      // Clear interface selection
+      const interfaceSelect = screen.getByLabelText('Network Interface:')
+      await userEvent.setup().selectOptions(interfaceSelect, '')
+
+      // Button should be disabled
+      expect(applyButton).toBeDisabled()
+    })
+
+    it('shows current settings when available', async () => {
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Current: Interface: eth0')).toBeInTheDocument()
+      })
+    })
+
+    it('handles empty BPF filter correctly', async () => {
+      const user = userEvent.setup()
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      // Mock interfaces response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      // Mock settings update response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'success'
+        })
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Click apply with empty filter
+      const applyButton = screen.getByText('Apply Settings')
+      await user.click(applyButton)
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith('http://localhost:8000/capture/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            iface: 'eth0',
+            bpf: ''
+          }),
+          signal: expect.any(AbortSignal)
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Current: Interface: eth0')).toBeInTheDocument()
+      })
+    })
+
+    it('validates interface selection before applying settings', async () => {
+      const user = userEvent.setup()
+
+      // Mock empty interfaces response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => []
+      })
+
+      render(<App />)
+
+      await waitFor(() => {
+        const applyButton = screen.getByText('Apply Settings')
+        expect(applyButton).toBeDisabled()
+      })
+
+      // Try to click disabled button
+      const applyButton = screen.getByText('Apply Settings')
+      expect(applyButton).toBeDisabled()
+    })
+
+    it('disables controls during settings update', async () => {
+      const user = userEvent.setup()
+      const mockInterfaces = [
+        { name: 'eth0', description: 'Ethernet adapter' }
+      ]
+
+      // Mock interfaces response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockInterfaces
+      })
+
+      // Mock slow settings update response
+      global.fetch.mockImplementationOnce(() => 
+        new Promise(resolve => 
+          setTimeout(() => resolve({
+            ok: true,
+            json: async () => ({ status: 'success' })
+          }), 100)
+        )
+      )
+
+      render(<App />)
+
+      await waitFor(() => {
+        expect(screen.getByText('eth0 (Ethernet adapter)')).toBeInTheDocument()
+      })
+
+      // Click apply button
+      const applyButton = screen.getByText('Apply Settings')
+      await user.click(applyButton)
+
+      // Check that controls are disabled during update
+      expect(screen.getByText('Applying...')).toBeInTheDocument()
+      expect(applyButton).toBeDisabled()
+      expect(screen.getByLabelText('Network Interface:')).toBeDisabled()
+      expect(screen.getByLabelText('BPF Filter:')).toBeDisabled()
+
+      // Wait for completion
+      await waitFor(() => {
+        expect(screen.getByText('Apply Settings')).toBeInTheDocument()
+        expect(applyButton).not.toBeDisabled()
+      })
+    })
+  })
 })

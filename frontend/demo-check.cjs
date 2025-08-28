@@ -45,6 +45,19 @@ const requiredFeatures = [
   { name: 'Packet table rendering', pattern: /packet-table/ },
   { name: 'AI explain functionality', pattern: /handleExplainPacket/ },
   { name: 'API client import', pattern: /import.*explainPacket.*from.*api/ },
+  { name: 'Interface controls import', pattern: /import.*getInterfaces.*updateCaptureSettings.*from.*api/ },
+  { name: 'Interface state management', pattern: /\[interfaces, setInterfaces\]/ },
+  { name: 'Selected interface state', pattern: /selectedInterface/ },
+  { name: 'BPF filter state', pattern: /bpfFilter/ },
+  { name: 'Settings loading state', pattern: /settingsLoading/ },
+  { name: 'Interface loading function', pattern: /loadInterfaces/ },
+  { name: 'Settings update function', pattern: /handleSettingsUpdate/ },
+  { name: 'Capture controls UI', pattern: /capture-controls/ },
+  { name: 'Interface dropdown', pattern: /interface-select/ },
+  { name: 'BPF filter input', pattern: /bpf-filter/ },
+  { name: 'Apply settings button', pattern: /Apply Settings/ },
+  { name: 'Current settings display', pattern: /current-settings/ },
+  { name: 'Settings error handling', pattern: /settings-error/ },
   { name: 'Timestamp formatting', pattern: /formatTimestamp/ }
 ]
 
@@ -69,7 +82,12 @@ const requiredStyles = [
   { name: 'AI explanation styling', pattern: /\.ai-explanation/ },
   { name: 'Explain button styling', pattern: /\.explain-button/ },
   { name: 'Error state styling', pattern: /\.ai-response\.error/ },
-  { name: 'Responsive design', pattern: /@media.*max-width/ }
+  { name: 'Responsive design', pattern: /@media.*max-width/ },
+  { name: 'Capture controls styling', pattern: /\.capture-controls/ },
+  { name: 'Control group styling', pattern: /\.control-group/ },
+  { name: 'Apply button styling', pattern: /\.apply-button/ },
+  { name: 'Current settings styling', pattern: /\.current-settings/ },
+  { name: 'Settings error styling', pattern: /\.settings-error/ }
 ]
 
 requiredStyles.forEach(style => {
@@ -88,10 +106,16 @@ if (fs.existsSync('src/api.js')) {
   const apiFeatures = [
     { name: 'ApiClient class', pattern: /class ApiClient/ },
     { name: 'explainPacket method', pattern: /explainPacket\(summary\)/ },
+    { name: 'getInterfaces method', pattern: /getInterfaces\(\)/ },
+    { name: 'updateCaptureSettings method', pattern: /updateCaptureSettings\(settings\)/ },
     { name: 'Error handling', pattern: /catch.*error/ },
     { name: 'Timeout handling', pattern: /AbortSignal\.timeout/ },
     { name: 'Response validation', pattern: /typeof.*explanation/ },
-    { name: 'Export functions', pattern: /export.*explainPacket/ }
+    { name: 'Interface validation', pattern: /Array\.isArray/ },
+    { name: 'Settings validation', pattern: /typeof settings/ },
+    { name: 'Export functions', pattern: /export.*explainPacket/ },
+    { name: 'Export getInterfaces', pattern: /export.*getInterfaces/ },
+    { name: 'Export updateCaptureSettings', pattern: /export.*updateCaptureSettings/ }
   ]
   
   apiFeatures.forEach(feature => {
@@ -153,4 +177,8 @@ console.log('   ✅ 3.1 - Packet selection and detail display')
 console.log('   ✅ 3.2 - AI analysis with "Explain Packet" button')
 console.log('   ✅ 3.3 - AI explanations with proper formatting')
 console.log('   ✅ 3.5 - Error handling for AI service failures')
+console.log('   ✅ 4.1 - Interface selection dropdown from /interfaces endpoint')
+console.log('   ✅ 4.2 - Dynamic interface configuration')
+console.log('   ✅ 4.3 - BPF filter input with apply functionality')
+console.log('   ✅ 4.5 - Configuration error handling')
 console.log('   ✅ 7.4 - Visual indicators and real-time updates')

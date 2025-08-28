@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { explainPacket } from './api'
+import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import './App.css'
 
 function App() {
@@ -9,6 +9,12 @@ function App() {
   const [alerts, setAlerts] = useState([])
   const [aiResponse, setAiResponse] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [interfaces, setInterfaces] = useState([])
+  const [selectedInterface, setSelectedInterface] = useState('')
+  const [bpfFilter, setBpfFilter] = useState('')
+  const [currentSettings, setCurrentSettings] = useState({ iface: '', bpf: '' })
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsError, setSettingsError] = useState(null)
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
 
@@ -71,9 +77,56 @@ function App() {
     }
   }
 
-  // Initialize WebSocket connection on component mount
+  // Load available interfaces on component mount
+  const loadInterfaces = async () => {
+    try {
+      const interfaceList = await getInterfaces()
+      setInterfaces(interfaceList)
+      // Set default interface if none selected
+      if (interfaceList.length > 0 && !selectedInterface) {
+        setSelectedInterface(interfaceList[0].name)
+        setCurrentSettings(prev => ({ ...prev, iface: interfaceList[0].name }))
+      }
+    } catch (error) {
+      console.error('Failed to load interfaces:', error)
+      setSettingsError('Failed to load network interfaces')
+    }
+  }
+
+  // Handle capture settings update
+  const handleSettingsUpdate = async () => {
+    if (!selectedInterface) {
+      setSettingsError('Please select a network interface')
+      return
+    }
+
+    setSettingsLoading(true)
+    setSettingsError(null)
+
+    try {
+      const result = await updateCaptureSettings({
+        iface: selectedInterface,
+        bpf: bpfFilter
+      })
+      
+      setCurrentSettings({
+        iface: selectedInterface,
+        bpf: bpfFilter
+      })
+      
+      console.log('Capture settings updated:', result)
+    } catch (error) {
+      console.error('Failed to update capture settings:', error)
+      setSettingsError(error.message || 'Failed to update capture settings')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // Initialize WebSocket connection and load interfaces on component mount
   useEffect(() => {
     connectWebSocket()
+    loadInterfaces()
 
     // Cleanup on component unmount
     return () => {
@@ -157,6 +210,61 @@ function App() {
           <span>Packets: {packets.length}</span>
         </div>
       </header>
+
+      <div className="capture-controls">
+        <h2>Capture Settings</h2>
+        <div className="controls-row">
+          <div className="control-group">
+            <label htmlFor="interface-select">Network Interface:</label>
+            <select
+              id="interface-select"
+              value={selectedInterface}
+              onChange={(e) => setSelectedInterface(e.target.value)}
+              disabled={settingsLoading}
+            >
+              <option value="">Select interface...</option>
+              {interfaces.map((iface) => (
+                <option key={iface.name} value={iface.name}>
+                  {iface.name} {iface.description && `(${iface.description})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label htmlFor="bpf-filter">BPF Filter:</label>
+            <input
+              id="bpf-filter"
+              type="text"
+              value={bpfFilter}
+              onChange={(e) => setBpfFilter(e.target.value)}
+              placeholder="e.g., port 80 or tcp"
+              disabled={settingsLoading}
+            />
+          </div>
+
+          <button
+            className="apply-button"
+            onClick={handleSettingsUpdate}
+            disabled={settingsLoading || !selectedInterface}
+          >
+            {settingsLoading ? 'Applying...' : 'Apply Settings'}
+          </button>
+        </div>
+
+        {currentSettings.iface && (
+          <div className="current-settings">
+            <strong>Current:</strong> Interface: {currentSettings.iface}
+            {currentSettings.bpf && `, Filter: ${currentSettings.bpf}`}
+          </div>
+        )}
+
+        {settingsError && (
+          <div className="settings-error">
+            Error: {settingsError}
+          </div>
+        )}
+      </div>
 
       {alerts.length > 0 && (
         <div className="alerts-section">

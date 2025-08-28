@@ -61,7 +61,7 @@
   - Write tests for AI integration and error scenarios
   - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
-- [ ] 9. Implement interface and filter controls
+- [x] 9. Implement interface and filter controls
   - Add interface selection dropdown populated from /interfaces endpoint
   - Create BPF filter input with apply functionality
   - Display current capture settings in the UI
