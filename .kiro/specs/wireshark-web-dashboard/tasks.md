@@ -37,7 +37,7 @@
   - Write tests for both OpenAI API and mock response paths
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 6. Add anomaly detection system
+- [x] 6. Add anomaly detection system
   - Implement rolling window statistics tracking for packet counts
   - Create z-score calculation for traffic spike detection
   - Add alert message generation and WebSocket broadcasting

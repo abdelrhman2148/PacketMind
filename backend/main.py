@@ -15,8 +15,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings, ExplainIn, ExplainOut
+from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings, ExplainIn, ExplainOut, AnomalyAlert
 from capture import PacketStreamer
+from anomaly import AnomalyDetector, AnomalyConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +44,9 @@ else:
 
 # Global packet streamer instance
 packet_streamer = PacketStreamer()
+
+# Global anomaly detector instance
+anomaly_detector = None
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -196,11 +200,25 @@ Keep the response under 200 words and focus on practical insights for network mo
         logger.info("Falling back to mock AI response due to API error")
         return await get_mock_ai_explanation(packet_summary)
 
+# Anomaly alert callback
+async def handle_anomaly_alert(alert: AnomalyAlert):
+    """
+    Handle anomaly alerts by broadcasting to connected clients.
+    Implements requirement 5.4 for alert broadcasting via WebSocket.
+    """
+    try:
+        alert_json = alert.model_dump_json()
+        await manager.broadcast(alert_json)
+        logger.info(f"Broadcasted anomaly alert: {alert.message}")
+    except Exception as e:
+        logger.error(f"Failed to broadcast anomaly alert: {e}")
+
 # Background task for packet broadcasting
 async def packet_broadcaster():
     """
     Background task that reads packets from streamer and broadcasts to clients.
     Implements requirement 2.1 for real-time streaming with <2 second latency.
+    Also handles anomaly detection per requirements 5.1, 5.2.
     """
     logger.info("Starting packet broadcaster")
     
@@ -210,6 +228,12 @@ async def packet_broadcaster():
             packet = packet_streamer.get_packet(timeout=0.1)
             
             if packet:
+                # Add packet to anomaly detector
+                if anomaly_detector:
+                    alert = anomaly_detector.add_packet(packet.ts)
+                    if alert:
+                        await handle_anomaly_alert(alert)
+                
                 # Convert to JSON and broadcast
                 packet_json = packet.model_dump_json()
                 await manager.broadcast(packet_json)
@@ -226,10 +250,24 @@ async def packet_broadcaster():
 async def lifespan(app: FastAPI):
     """
     Manage application startup and shutdown.
-    Starts packet capture and broadcaster on startup.
+    Starts packet capture, anomaly detection, and broadcaster on startup.
     """
+    global anomaly_detector
+    
     # Startup
     logger.info("Starting Wireshark+ Web API")
+    
+    # Initialize anomaly detector with configuration from environment
+    anomaly_config = AnomalyConfig(
+        window_size=int(os.getenv("ANOMALY_WINDOW_SIZE", "60")),
+        threshold=float(os.getenv("ANOMALY_THRESHOLD", "3.0")),
+        min_samples=int(os.getenv("ANOMALY_MIN_SAMPLES", "10")),
+        alert_cooldown=int(os.getenv("ANOMALY_ALERT_COOLDOWN", "30"))
+    )
+    
+    # Create anomaly detector (alert callback will be handled in broadcaster)
+    anomaly_detector = AnomalyDetector(config=anomaly_config)
+    logger.info("Initialized anomaly detection system")
     
     # Start packet capture on default interface
     if not packet_streamer.start():
@@ -252,6 +290,10 @@ async def lifespan(app: FastAPI):
     
     # Stop packet capture
     packet_streamer.stop()
+    
+    # Reset anomaly detector
+    if anomaly_detector:
+        anomaly_detector.reset()
 
 # Create FastAPI application
 app = FastAPI(
@@ -375,6 +417,94 @@ async def get_status():
     except Exception as e:
         logger.error(f"Failed to get status: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve system status")
+
+@app.get("/anomaly/stats")
+async def get_anomaly_stats():
+    """
+    Get current anomaly detection statistics.
+    Provides insights into traffic patterns and detection parameters.
+    """
+    try:
+        if not anomaly_detector:
+            raise HTTPException(status_code=503, detail="Anomaly detection not initialized")
+        
+        stats = anomaly_detector.get_stats()
+        return {
+            "status": "active",
+            "statistics": stats
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get anomaly stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve anomaly statistics")
+
+@app.post("/anomaly/config")
+async def update_anomaly_config(
+    window_size: int = 60,
+    threshold: float = 3.0,
+    min_samples: int = 10,
+    alert_cooldown: int = 30
+):
+    """
+    Update anomaly detection configuration parameters.
+    Implements requirement 5.4 for configurable anomaly detection.
+    """
+    try:
+        if not anomaly_detector:
+            raise HTTPException(status_code=503, detail="Anomaly detection not initialized")
+        
+        # Validate parameters
+        if window_size < 10 or window_size > 300:
+            raise HTTPException(status_code=400, detail="Window size must be between 10 and 300 seconds")
+        
+        if threshold < 1.0 or threshold > 10.0:
+            raise HTTPException(status_code=400, detail="Threshold must be between 1.0 and 10.0")
+        
+        if min_samples < 5 or min_samples > window_size:
+            raise HTTPException(status_code=400, detail="Min samples must be between 5 and window_size")
+        
+        if alert_cooldown < 5 or alert_cooldown > 300:
+            raise HTTPException(status_code=400, detail="Alert cooldown must be between 5 and 300 seconds")
+        
+        # Update configuration
+        new_config = AnomalyConfig(
+            window_size=window_size,
+            threshold=threshold,
+            min_samples=min_samples,
+            alert_cooldown=alert_cooldown
+        )
+        
+        anomaly_detector.update_config(new_config)
+        
+        # Notify connected clients of configuration change
+        config_message = {
+            "type": "anomaly_config_change",
+            "window_size": window_size,
+            "threshold": threshold,
+            "min_samples": min_samples,
+            "alert_cooldown": alert_cooldown,
+            "timestamp": time.time()
+        }
+        await manager.broadcast(json.dumps(config_message))
+        
+        return {
+            "status": "success",
+            "message": "Anomaly detection configuration updated",
+            "config": {
+                "window_size": window_size,
+                "threshold": threshold,
+                "min_samples": min_samples,
+                "alert_cooldown": alert_cooldown
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update anomaly config: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update anomaly configuration")
 
 @app.post("/ai/explain", response_model=ExplainOut)
 async def explain_packet(request: ExplainIn):
