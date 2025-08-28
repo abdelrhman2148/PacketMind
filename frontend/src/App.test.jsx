@@ -504,6 +504,252 @@ describe('App Component', () => {
     expect(screen.getByText('Analyzing...')).toBeInTheDocument()
   })
 
+  describe('Alert and Traffic Visualization', () => {
+    it('displays packet rate in status bar', async () => {
+      vi.useFakeTimers()
+      render(<App />)
+      
+      // Send packets to trigger rate calculation
+      for (let i = 0; i < 5; i++) {
+        const packet = { ...mockPacket, ts: mockPacket.ts + i }
+        mockWebSocket.onmessage({ data: JSON.stringify(packet) })
+      }
+      
+      // Advance time to trigger rate update
+      vi.advanceTimersByTime(1000)
+      
+      await waitFor(() => {
+        expect(screen.getByText(/Rate: \d+ pps/)).toBeInTheDocument()
+      })
+      
+      vi.useRealTimers()
+    })
+
+    it('displays sparkline visualization in header', () => {
+      render(<App />)
+      
+      // Should show sparkline container even with no data
+      const sparklineContainer = document.querySelector('.traffic-sparkline')
+      expect(sparklineContainer).toBeInTheDocument()
+    })
+
+    it('handles alert filtering when alert is clicked', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      // Add some packets first
+      const packet1 = { ...mockPacket, ts: 1640995200.123 }
+      const packet2 = { ...mockPacket, ts: 1640995260.456, src: '192.168.1.101' } // 1 minute later
+      
+      mockWebSocket.onmessage({ data: JSON.stringify(packet1) })
+      mockWebSocket.onmessage({ data: JSON.stringify(packet2) })
+      
+      // Add alert
+      mockWebSocket.onmessage({ data: JSON.stringify(mockAlert) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Recent Alerts')).toBeInTheDocument()
+        expect(screen.getByText('Suspicious burst detected')).toBeInTheDocument()
+      })
+      
+      // Click on alert
+      const alertElement = screen.getByText('Suspicious burst detected').closest('.alert')
+      await user.click(alertElement)
+      
+      // Should show filter info and clear filter button
+      await waitFor(() => {
+        expect(screen.getByText('Clear Filter')).toBeInTheDocument()
+        expect(screen.getByText(/Showing packets from/)).toBeInTheDocument()
+      })
+    })
+
+    it('clears alert filter when clear button is clicked', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      // Add alert and activate filter
+      mockWebSocket.onmessage({ data: JSON.stringify(mockAlert) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Suspicious burst detected')).toBeInTheDocument()
+      })
+      
+      const alertElement = screen.getByText('Suspicious burst detected').closest('.alert')
+      await user.click(alertElement)
+      
+      await waitFor(() => {
+        expect(screen.getByText('Clear Filter')).toBeInTheDocument()
+      })
+      
+      // Click clear filter
+      const clearButton = screen.getByText('Clear Filter')
+      await user.click(clearButton)
+      
+      // Filter should be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('Clear Filter')).not.toBeInTheDocument()
+        expect(screen.queryByText(/Showing packets from/)).not.toBeInTheDocument()
+      })
+    })
+
+    it('filters packets based on alert time window', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      // Add packets at different times
+      const packet1 = { ...mockPacket, ts: 1640995200.123, src: '192.168.1.100' } // Within window
+      const packet2 = { ...mockPacket, ts: 1640995300.456, src: '192.168.1.101' } // Outside window
+      
+      mockWebSocket.onmessage({ data: JSON.stringify(packet1) })
+      mockWebSocket.onmessage({ data: JSON.stringify(packet2) })
+      
+      // Add alert with window_start matching packet1 time
+      const alertWithWindow = {
+        ...mockAlert,
+        meta: {
+          ...mockAlert.meta,
+          window_start: 1640995200 // Matches packet1
+        }
+      }
+      mockWebSocket.onmessage({ data: JSON.stringify(alertWithWindow) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+        expect(screen.getByText('192.168.1.101')).toBeInTheDocument()
+      })
+      
+      // Click alert to filter
+      const alertElement = screen.getByText('Suspicious burst detected').closest('.alert')
+      await user.click(alertElement)
+      
+      // Should only show packet1, not packet2
+      await waitFor(() => {
+        expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+        expect(screen.queryByText('192.168.1.101')).not.toBeInTheDocument()
+      })
+    })
+
+    it('shows no packets message when filter excludes all packets', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      // Add packet outside alert window
+      const packet = { ...mockPacket, ts: 1640995300.456 } // Outside window
+      mockWebSocket.onmessage({ data: JSON.stringify(packet) })
+      
+      // Add alert
+      mockWebSocket.onmessage({ data: JSON.stringify(mockAlert) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+      })
+      
+      // Click alert to filter
+      const alertElement = screen.getByText('Suspicious burst detected').closest('.alert')
+      await user.click(alertElement)
+      
+      // Should show no packets message
+      await waitFor(() => {
+        expect(screen.getByText('No packets found in the selected time window')).toBeInTheDocument()
+      })
+    })
+
+    it('displays alert metadata when available', async () => {
+      render(<App />)
+      
+      mockWebSocket.onmessage({ data: JSON.stringify(mockAlert) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Z-score: 3.20, Count: 150')).toBeInTheDocument()
+      })
+    })
+
+    it('highlights active alert when filter is applied', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      mockWebSocket.onmessage({ data: JSON.stringify(mockAlert) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Suspicious burst detected')).toBeInTheDocument()
+      })
+      
+      const alertElement = screen.getByText('Suspicious burst detected').closest('.alert')
+      await user.click(alertElement)
+      
+      await waitFor(() => {
+        expect(alertElement).toHaveClass('alert-active')
+      })
+    })
+
+    it('updates traffic history for sparkline visualization', async () => {
+      vi.useFakeTimers()
+      render(<App />)
+      
+      // Send packets to build traffic history
+      for (let i = 0; i < 10; i++) {
+        const packet = { ...mockPacket, ts: mockPacket.ts + i }
+        mockWebSocket.onmessage({ data: JSON.stringify(packet) })
+        
+        // Advance time to trigger rate updates
+        vi.advanceTimersByTime(1000)
+      }
+      
+      // Should have sparkline with data
+      const sparkline = document.querySelector('.sparkline')
+      expect(sparkline).toBeInTheDocument()
+      
+      vi.useRealTimers()
+    })
+
+    it('limits traffic history to 60 data points', async () => {
+      vi.useFakeTimers()
+      render(<App />)
+      
+      // Send packets for more than 60 seconds
+      for (let i = 0; i < 70; i++) {
+        const packet = { ...mockPacket, ts: mockPacket.ts + i }
+        mockWebSocket.onmessage({ data: JSON.stringify(packet) })
+        vi.advanceTimersByTime(1000)
+      }
+      
+      // Traffic history should be limited (we can't directly test the internal state,
+      // but we can verify the component doesn't crash with large datasets)
+      const sparkline = document.querySelector('.sparkline')
+      expect(sparkline).toBeInTheDocument()
+      
+      vi.useRealTimers()
+    })
+
+    it('handles alerts without metadata gracefully', async () => {
+      const alertWithoutMeta = {
+        type: 'alert',
+        level: 'warning',
+        message: 'Simple alert without metadata',
+        timestamp: Date.now() / 1000
+      }
+      
+      render(<App />)
+      
+      mockWebSocket.onmessage({ data: JSON.stringify(alertWithoutMeta) })
+      
+      await waitFor(() => {
+        expect(screen.getByText('Simple alert without metadata')).toBeInTheDocument()
+      })
+      
+      // Should not show metadata section
+      expect(screen.queryByText(/Z-score:/)).not.toBeInTheDocument()
+    })
+
+    it('shows sparkline with empty state when no data', () => {
+      render(<App />)
+      
+      const emptySparkline = document.querySelector('.sparkline-empty')
+      expect(emptySparkline).toBeInTheDocument()
+      expect(emptySparkline).toHaveTextContent('No data')
+    })
+  })
+
   describe('Configuration Controls', () => {
     it('renders capture settings section', () => {
       render(<App />)

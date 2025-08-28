@@ -69,7 +69,7 @@
   - Write tests for configuration UI components
   - _Requirements: 4.1, 4.2, 4.3, 4.5_
 
-- [ ] 10. Add anomaly alerts and traffic visualization
+- [x] 10. Add anomaly alerts and traffic visualization
   - Implement alert notification system in frontend
   - Create sparkline visualization for packet rate over time
   - Add alert filtering functionality for packet table

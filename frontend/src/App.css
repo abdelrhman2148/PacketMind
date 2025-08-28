@@ -28,16 +28,76 @@
   color: #cccccc;
 }
 
+.traffic-sparkline {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  background-color: rgba(97, 218, 251, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(97, 218, 251, 0.3);
+}
+
+.sparkline-container {
+  position: relative;
+  display: inline-block;
+}
+
+.sparkline {
+  display: block;
+}
+
+.sparkline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2d2d2d;
+  border-radius: 4px;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.sparkline-info {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.7rem;
+  color: #61dafb;
+  font-weight: 500;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
 .alerts-section {
   padding: 1rem 2rem;
   background-color: #2a1810;
   border-bottom: 1px solid #404040;
 }
 
+.alerts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
 .alerts-section h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   color: #fbbf24;
   font-size: 1rem;
+}
+
+.clear-filter-button {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.clear-filter-button:hover {
+  background-color: #4b5563;
 }
 
 .alerts-list {
@@ -53,6 +113,19 @@
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.alert:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.alert-active {
+  box-shadow: 0 0 0 2px #61dafb;
+  background-color: rgba(97, 218, 251, 0.1) !important;
 }
 
 .alert-warning {
@@ -72,6 +145,24 @@
 
 .alert-message {
   color: #ffffff;
+  flex: 1;
+}
+
+.alert-meta {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.filter-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(97, 218, 251, 0.1);
+  border: 1px solid rgba(97, 218, 251, 0.3);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #61dafb;
+  text-align: center;
 }
 
 .capture-controls {

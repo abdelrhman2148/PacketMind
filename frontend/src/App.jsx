@@ -2,6 +2,52 @@ import { useState, useEffect, useRef } from 'react'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import './App.css'
 
+// Simple Sparkline component for traffic visualization
+function Sparkline({ data, width = 200, height = 40 }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="sparkline-empty" style={{ width, height }}>
+        <span>No data</span>
+      </div>
+    )
+  }
+
+  const maxRate = Math.max(...data.map(d => d.rate), 1)
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * width
+    const y = height - (d.rate / maxRate) * height
+    return `${x},${y}`
+  }).join(' ')
+
+  return (
+    <div className="sparkline-container" style={{ width, height }}>
+      <svg width={width} height={height} className="sparkline">
+        <polyline
+          points={points}
+          fill="none"
+          stroke="#61dafb"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        <defs>
+          <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#61dafb" stopOpacity="0.3"/>
+            <stop offset="100%" stopColor="#61dafb" stopOpacity="0.1"/>
+          </linearGradient>
+        </defs>
+        <polygon
+          points={`0,${height} ${points} ${width},${height}`}
+          fill="url(#sparklineGradient)"
+        />
+      </svg>
+      <div className="sparkline-info">
+        <span className="sparkline-max">{maxRate} pps</span>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [packets, setPackets] = useState([])
   const [selectedPacket, setSelectedPacket] = useState(null)
@@ -15,8 +61,14 @@ function App() {
   const [currentSettings, setCurrentSettings] = useState({ iface: '', bpf: '' })
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsError, setSettingsError] = useState(null)
+  const [packetRate, setPacketRate] = useState(0)
+  const [trafficHistory, setTrafficHistory] = useState([])
+  const [alertFilter, setAlertFilter] = useState(null)
+  const [filteredPackets, setFilteredPackets] = useState([])
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
+  const packetCountRef = useRef(0)
+  const lastRateUpdateRef = useRef(Date.now())
 
   // WebSocket connection management with automatic reconnection
   const connectWebSocket = () => {
@@ -50,6 +102,26 @@ function App() {
               const newPackets = [data, ...prev.slice(0, 499)] // Keep last 500 packets
               return newPackets
             })
+            
+            // Update packet rate calculation
+            packetCountRef.current += 1
+            const now = Date.now()
+            const timeDiff = now - lastRateUpdateRef.current
+            
+            // Update rate every second
+            if (timeDiff >= 1000) {
+              const rate = Math.round((packetCountRef.current * 1000) / timeDiff)
+              setPacketRate(rate)
+              
+              // Update traffic history for sparkline (keep last 60 seconds)
+              setTrafficHistory(prev => {
+                const newHistory = [...prev, { time: now, rate }].slice(-60)
+                return newHistory
+              })
+              
+              packetCountRef.current = 0
+              lastRateUpdateRef.current = now
+            }
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error)
@@ -171,6 +243,38 @@ function App() {
     }
   }
 
+  // Handle alert click for filtering
+  const handleAlertClick = (alert) => {
+    if (alert.meta && alert.meta.window_start) {
+      const windowStart = alert.meta.window_start * 1000 // Convert to milliseconds
+      const windowEnd = windowStart + 60000 // 1 minute window
+      
+      setAlertFilter({
+        start: windowStart,
+        end: windowEnd,
+        alert: alert
+      })
+    }
+  }
+
+  // Clear alert filter
+  const clearAlertFilter = () => {
+    setAlertFilter(null)
+  }
+
+  // Filter packets based on alert filter
+  useEffect(() => {
+    if (alertFilter) {
+      const filtered = packets.filter(packet => {
+        const packetTime = packet.ts * 1000
+        return packetTime >= alertFilter.start && packetTime <= alertFilter.end
+      })
+      setFilteredPackets(filtered)
+    } else {
+      setFilteredPackets(packets)
+    }
+  }, [packets, alertFilter])
+
   // Get connection status indicator
   const getConnectionIndicator = () => {
     const statusColors = {
@@ -208,6 +312,10 @@ function App() {
         <div className="status-bar">
           {getConnectionIndicator()}
           <span>Packets: {packets.length}</span>
+          <span>Rate: {packetRate} pps</span>
+          <div className="traffic-sparkline">
+            <Sparkline data={trafficHistory} width={120} height={30} />
+          </div>
         </div>
       </header>
 
@@ -268,15 +376,37 @@ function App() {
 
       {alerts.length > 0 && (
         <div className="alerts-section">
-          <h3>Recent Alerts</h3>
+          <div className="alerts-header">
+            <h3>Recent Alerts</h3>
+            {alertFilter && (
+              <button className="clear-filter-button" onClick={clearAlertFilter}>
+                Clear Filter
+              </button>
+            )}
+          </div>
           <div className="alerts-list">
             {alerts.slice(0, 3).map((alert, index) => (
-              <div key={index} className={`alert alert-${alert.level}`}>
-                <span className="alert-time">{formatTimestamp(alert.timestamp)}</span>
+              <div 
+                key={index} 
+                className={`alert alert-${alert.level} ${alertFilter?.alert === alert ? 'alert-active' : ''}`}
+                onClick={() => handleAlertClick(alert)}
+                title="Click to filter packets by alert time window"
+              >
+                <span className="alert-time">{formatTimestamp(alert.timestamp || Date.now() / 1000)}</span>
                 <span className="alert-message">{alert.message}</span>
+                {alert.meta && (
+                  <span className="alert-meta">
+                    Z-score: {alert.meta.z_score?.toFixed(2)}, Count: {alert.meta.packet_count}
+                  </span>
+                )}
               </div>
             ))}
           </div>
+          {alertFilter && (
+            <div className="filter-info">
+              Showing packets from {new Date(alertFilter.start).toLocaleTimeString()} to {new Date(alertFilter.end).toLocaleTimeString()}
+            </div>
+          )}
         </div>
       )}
 
@@ -296,7 +426,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {packets.map((packet, index) => (
+                {filteredPackets.map((packet, index) => (
                   <tr 
                     key={index}
                     className={selectedPacket === packet ? 'selected' : ''}
@@ -317,6 +447,11 @@ function App() {
                 ))}
               </tbody>
             </table>
+            {filteredPackets.length === 0 && packets.length > 0 && alertFilter && (
+              <div className="no-packets">
+                No packets found in the selected time window
+              </div>
+            )}
             {packets.length === 0 && (
               <div className="no-packets">
                 {connectionStatus === 'connected' 
