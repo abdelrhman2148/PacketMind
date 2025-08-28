@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { explainPacket } from './api'
 import './App.css'
 
 function App() {
@@ -104,26 +105,12 @@ function App() {
     setAiResponse(null)
 
     try {
-      const response = await fetch('http://localhost:8000/ai/explain', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          summary: selectedPacket.summary
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
+      const data = await explainPacket(selectedPacket.summary)
       setAiResponse(data)
     } catch (error) {
       console.error('Error getting AI explanation:', error)
       setAiResponse({
-        explanation: 'Failed to get AI explanation. Please try again.',
+        explanation: error.message || 'Failed to get AI explanation. Please try again.',
         is_mock: false
       })
     } finally {
@@ -270,7 +257,7 @@ function App() {
               </button>
 
               {aiResponse && (
-                <div className="ai-response">
+                <div className={`ai-response ${aiResponse.explanation.includes('Failed to get') || aiResponse.explanation.includes('error') || aiResponse.explanation.includes('HTTP') ? 'error' : ''}`}>
                   <h3>AI Analysis {aiResponse.is_mock && '(Mock)'}</h3>
                   <div className="ai-explanation">
                     {aiResponse.explanation}

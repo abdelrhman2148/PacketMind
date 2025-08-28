@@ -240,6 +240,38 @@
   line-height: 1.6;
   color: #e5e7eb;
   font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.ai-explanation::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-explanation::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.ai-explanation::-webkit-scrollbar-thumb {
+  background: #525252;
+  border-radius: 3px;
+}
+
+.ai-explanation::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.ai-analysis-section .explain-button:focus {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+.ai-response.error .ai-explanation {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #fca5a5;
 }
 
 /* Responsive design for smaller screens */

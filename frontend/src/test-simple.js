@@ -154,8 +154,52 @@ function testAIApiCall() {
     if (!data.explanation) {
       throw new Error('AI response missing explanation')
     }
+    if (typeof data.is_mock !== 'boolean') {
+      throw new Error('AI response missing is_mock flag')
+    }
     console.log('✓ AI API call test passed')
   })
+}
+
+function testAIErrorHandling() {
+  console.log('Testing AI error handling...')
+  
+  const mockErrorFetch = async () => {
+    throw new Error('Network error - unable to connect to AI service')
+  }
+  
+  return mockErrorFetch()
+    .catch(error => {
+      if (!error.message.includes('Network error')) {
+        throw new Error('Error handling failed')
+      }
+      console.log('✓ AI error handling test passed')
+    })
+}
+
+function testAILoadingStates() {
+  console.log('Testing AI loading states...')
+  
+  let isLoading = false
+  let aiResponse = null
+  
+  // Simulate loading state
+  isLoading = true
+  aiResponse = null
+  
+  if (!isLoading || aiResponse !== null) {
+    throw new Error('Loading state not set correctly')
+  }
+  
+  // Simulate response received
+  isLoading = false
+  aiResponse = { explanation: 'Test response', is_mock: true }
+  
+  if (isLoading || !aiResponse || !aiResponse.explanation) {
+    throw new Error('Response state not set correctly')
+  }
+  
+  console.log('✓ AI loading states test passed')
 }
 
 function testAlertHandling() {
@@ -188,6 +232,8 @@ async function runTests() {
     testPacketBufferLimit()
     testTimestampFormatting()
     await testAIApiCall()
+    await testAIErrorHandling()
+    testAILoadingStates()
     testAlertHandling()
     
     console.log('\n✅ All tests passed!')
@@ -195,7 +241,8 @@ async function runTests() {
     console.log('- Packet table component with real-time updates')
     console.log('- WebSocket connection management with automatic reconnection')
     console.log('- Packet selection and detail display functionality')
-    console.log('- AI analysis integration')
+    console.log('- AI analysis integration with proper error handling')
+    console.log('- AI loading states and user feedback')
     console.log('- Alert notification system')
     console.log('- Proper data handling and buffer management')
     

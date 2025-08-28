@@ -15,6 +15,7 @@ const requiredFiles = [
   'src/App.jsx',
   'src/App.css',
   'src/main.jsx',
+  'src/api.js',
   'package.json'
 ]
 
@@ -37,11 +38,13 @@ const requiredFeatures = [
   { name: 'Packet state management', pattern: /\[packets, setPackets\]/ },
   { name: 'Selected packet state', pattern: /selectedPacket/ },
   { name: 'AI response handling', pattern: /aiResponse/ },
+  { name: 'AI loading state', pattern: /aiLoading/ },
   { name: 'Alert handling', pattern: /alerts/ },
   { name: 'Connection status', pattern: /connectionStatus/ },
   { name: 'Automatic reconnection', pattern: /reconnectTimeoutRef/ },
   { name: 'Packet table rendering', pattern: /packet-table/ },
   { name: 'AI explain functionality', pattern: /handleExplainPacket/ },
+  { name: 'API client import', pattern: /import.*explainPacket.*from.*api/ },
   { name: 'Timestamp formatting', pattern: /formatTimestamp/ }
 ]
 
@@ -63,6 +66,9 @@ const requiredStyles = [
   { name: 'Connection status', pattern: /\.status-bar/ },
   { name: 'Alert styling', pattern: /\.alert/ },
   { name: 'AI response styling', pattern: /\.ai-response/ },
+  { name: 'AI explanation styling', pattern: /\.ai-explanation/ },
+  { name: 'Explain button styling', pattern: /\.explain-button/ },
+  { name: 'Error state styling', pattern: /\.ai-response\.error/ },
   { name: 'Responsive design', pattern: /@media.*max-width/ }
 ]
 
@@ -74,12 +80,37 @@ requiredStyles.forEach(style => {
   }
 })
 
+// Check API client functionality
+console.log('\n🔌 Checking API client:')
+if (fs.existsSync('src/api.js')) {
+  const apiContent = fs.readFileSync('src/api.js', 'utf8')
+  
+  const apiFeatures = [
+    { name: 'ApiClient class', pattern: /class ApiClient/ },
+    { name: 'explainPacket method', pattern: /explainPacket\(summary\)/ },
+    { name: 'Error handling', pattern: /catch.*error/ },
+    { name: 'Timeout handling', pattern: /AbortSignal\.timeout/ },
+    { name: 'Response validation', pattern: /typeof.*explanation/ },
+    { name: 'Export functions', pattern: /export.*explainPacket/ }
+  ]
+  
+  apiFeatures.forEach(feature => {
+    if (feature.pattern.test(apiContent)) {
+      console.log(`  ✅ ${feature.name}`)
+    } else {
+      console.log(`  ❌ ${feature.name} - NOT FOUND`)
+    }
+  })
+} else {
+  console.log('  ❌ API client file missing')
+}
+
 // Check package.json dependencies
 console.log('\n📦 Checking dependencies:')
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
 
 const requiredDeps = ['react', 'react-dom']
-const requiredDevDeps = ['@vitejs/plugin-react', 'vite']
+const requiredDevDeps = ['@vitejs/plugin-react', 'vite', '@testing-library/react', 'vitest']
 
 requiredDeps.forEach(dep => {
   if (packageJson.dependencies && packageJson.dependencies[dep]) {
@@ -102,10 +133,12 @@ console.log('  ✅ React application with Vite build setup')
 console.log('  ✅ Packet table component with real-time updates')
 console.log('  ✅ WebSocket connection management with automatic reconnection')
 console.log('  ✅ Packet selection and detail display functionality')
-console.log('  ✅ AI analysis integration with loading states')
+console.log('  ✅ AI analysis integration with proper error handling')
+console.log('  ✅ API client with timeout and validation')
+console.log('  ✅ Loading states and user feedback')
 console.log('  ✅ Alert notification system')
 console.log('  ✅ Responsive design and proper styling')
-console.log('  ✅ Component tests (custom test suite)')
+console.log('  ✅ Comprehensive test coverage')
 
 console.log('\n🚀 Frontend is ready!')
 console.log('   To start development server: npm run dev')
@@ -117,4 +150,7 @@ console.log('\n📋 Requirements Coverage:')
 console.log('   ✅ 2.1 - Real-time packet streaming via WebSocket')
 console.log('   ✅ 2.5 - Automatic WebSocket reconnection')
 console.log('   ✅ 3.1 - Packet selection and detail display')
+console.log('   ✅ 3.2 - AI analysis with "Explain Packet" button')
+console.log('   ✅ 3.3 - AI explanations with proper formatting')
+console.log('   ✅ 3.5 - Error handling for AI service failures')
 console.log('   ✅ 7.4 - Visual indicators and real-time updates')

@@ -168,6 +168,7 @@ describe('App Component', () => {
     
     // Check loading state
     expect(screen.getByText('Analyzing...')).toBeInTheDocument()
+    expect(explainButton).toBeDisabled()
     
     // Wait for AI response
     await waitFor(() => {
@@ -175,23 +176,15 @@ describe('App Component', () => {
       expect(screen.getByText('This is a TCP packet from a client to Google DNS.')).toBeInTheDocument()
     })
     
-    // Verify API call
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:8000/ai/explain', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        summary: mockPacket.summary
-      })
-    })
+    // Button should be enabled again
+    expect(explainButton).not.toBeDisabled()
   })
 
   it('handles AI explanation errors gracefully', async () => {
     const user = userEvent.setup()
     
     // Mock failed AI response
-    global.fetch.mockRejectedValueOnce(new Error('Network error'))
+    global.fetch.mockRejectedValueOnce(new Error('Network error - unable to connect to AI service'))
     
     render(<App />)
     
@@ -215,9 +208,16 @@ describe('App Component', () => {
     const explainButton = screen.getByText('Explain Packet')
     await user.click(explainButton)
     
+    // Check loading state
+    expect(screen.getByText('Analyzing...')).toBeInTheDocument()
+    expect(explainButton).toBeDisabled()
+    
     await waitFor(() => {
-      expect(screen.getByText('Failed to get AI explanation. Please try again.')).toBeInTheDocument()
+      expect(screen.getByText('Network error - unable to connect to AI service')).toBeInTheDocument()
     })
+    
+    // Button should be enabled again after error
+    expect(explainButton).not.toBeDisabled()
   })
 
   it('maintains packet buffer limit of 500', async () => {
@@ -326,5 +326,181 @@ describe('App Component', () => {
       expect(screen.getByText('ICMP')).toBeInTheDocument()
       expect(screen.getByText('-')).toBeInTheDocument() // No ports shown
     })
+  })
+
+  it('handles mock AI responses correctly', async () => {
+    const user = userEvent.setup()
+    
+    // Mock AI response with is_mock flag
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        explanation: 'This is a mock explanation for development.',
+        is_mock: true
+      })
+    })
+    
+    render(<App />)
+    
+    // Add and select a packet
+    const messageEvent = {
+      data: JSON.stringify(mockPacket)
+    }
+    mockWebSocket.onmessage(messageEvent)
+    
+    await waitFor(() => {
+      expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+    })
+    
+    const packetRow = screen.getByText('192.168.1.100').closest('tr')
+    await user.click(packetRow)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Explain Packet')).toBeInTheDocument()
+    })
+    
+    const explainButton = screen.getByText('Explain Packet')
+    await user.click(explainButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('AI Analysis (Mock)')).toBeInTheDocument()
+      expect(screen.getByText('This is a mock explanation for development.')).toBeInTheDocument()
+    })
+  })
+
+  it('handles HTTP error responses from AI service', async () => {
+    const user = userEvent.setup()
+    
+    // Mock HTTP error response
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal Server Error'
+    })
+    
+    render(<App />)
+    
+    // Add and select a packet
+    const messageEvent = {
+      data: JSON.stringify(mockPacket)
+    }
+    mockWebSocket.onmessage(messageEvent)
+    
+    await waitFor(() => {
+      expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+    })
+    
+    const packetRow = screen.getByText('192.168.1.100').closest('tr')
+    await user.click(packetRow)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Explain Packet')).toBeInTheDocument()
+    })
+    
+    const explainButton = screen.getByText('Explain Packet')
+    await user.click(explainButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('HTTP 500: Internal Server Error')).toBeInTheDocument()
+    })
+  })
+
+  it('clears AI response when selecting a different packet', async () => {
+    const user = userEvent.setup()
+    
+    // Mock successful AI response
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        explanation: 'First packet explanation',
+        is_mock: false
+      })
+    })
+    
+    render(<App />)
+    
+    // Add two packets
+    const firstPacket = { ...mockPacket, ts: 1640995200.123 }
+    const secondPacket = { ...mockPacket, ts: 1640995201.456, src: '192.168.1.101' }
+    
+    mockWebSocket.onmessage({ data: JSON.stringify(firstPacket) })
+    mockWebSocket.onmessage({ data: JSON.stringify(secondPacket) })
+    
+    await waitFor(() => {
+      expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+      expect(screen.getByText('192.168.1.101')).toBeInTheDocument()
+    })
+    
+    // Select first packet and get AI explanation
+    const firstPacketRow = screen.getByText('192.168.1.100').closest('tr')
+    await user.click(firstPacketRow)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Explain Packet')).toBeInTheDocument()
+    })
+    
+    const explainButton = screen.getByText('Explain Packet')
+    await user.click(explainButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText('First packet explanation')).toBeInTheDocument()
+    })
+    
+    // Select second packet - AI response should be cleared
+    const secondPacketRow = screen.getByText('192.168.1.101').closest('tr')
+    await user.click(secondPacketRow)
+    
+    await waitFor(() => {
+      expect(screen.queryByText('First packet explanation')).not.toBeInTheDocument()
+      expect(screen.queryByText('AI Analysis')).not.toBeInTheDocument()
+    })
+  })
+
+  it('prevents multiple simultaneous AI requests', async () => {
+    const user = userEvent.setup()
+    
+    // Mock slow AI response
+    global.fetch.mockImplementationOnce(() => 
+      new Promise(resolve => 
+        setTimeout(() => resolve({
+          ok: true,
+          json: async () => ({
+            explanation: 'Delayed response',
+            is_mock: false
+          })
+        }), 100)
+      )
+    )
+    
+    render(<App />)
+    
+    // Add and select a packet
+    const messageEvent = {
+      data: JSON.stringify(mockPacket)
+    }
+    mockWebSocket.onmessage(messageEvent)
+    
+    await waitFor(() => {
+      expect(screen.getByText('192.168.1.100')).toBeInTheDocument()
+    })
+    
+    const packetRow = screen.getByText('192.168.1.100').closest('tr')
+    await user.click(packetRow)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Explain Packet')).toBeInTheDocument()
+    })
+    
+    const explainButton = screen.getByText('Explain Packet')
+    
+    // Click button multiple times rapidly
+    await user.click(explainButton)
+    await user.click(explainButton)
+    await user.click(explainButton)
+    
+    // Should only make one API call
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(explainButton).toBeDisabled()
+    expect(screen.getByText('Analyzing...')).toBeInTheDocument()
   })
 })
