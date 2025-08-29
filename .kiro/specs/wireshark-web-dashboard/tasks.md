@@ -86,7 +86,7 @@
   - Write documentation for setup and demo procedures
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 12. Add privilege handling and platform support
+- [x] 12. Add privilege handling and platform support
   - Implement proper error messages for insufficient privileges
   - Add capability-based permission setup for Linux
   - Create macOS-specific guidance for packet capture permissions

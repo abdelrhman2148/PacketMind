@@ -78,10 +78,54 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-# Check if running as root or with sudo (required for packet capture)
-if [ "$EUID" -ne 0 ]; then
-    print_warning "This script requires sudo privileges for packet capture"
-    print_status "Please run: sudo make start-demo"
+# Check packet capture privileges
+check_privileges() {
+    # Check if running as root
+    if [ "$EUID" -eq 0 ]; then
+        return 0
+    fi
+    
+    # Check for Linux capabilities
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v getcap &> /dev/null; then
+            local python_path=$(which python3)
+            local caps=$(getcap "$python_path" 2>/dev/null || echo "")
+            if echo "$caps" | grep -q "cap_net_raw\|cap_net_admin"; then
+                print_success "Linux capabilities detected - packet capture available"
+                return 0
+            fi
+        fi
+    fi
+    
+    return 1
+}
+
+# Check packet capture privileges
+if ! check_privileges; then
+    print_error "Insufficient privileges for packet capture"
+    echo ""
+    
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        print_status "Linux detected. You have two options:"
+        echo ""
+        echo -e "${YELLOW}Option 1 (Recommended):${NC} Set up capabilities once"
+        echo -e "  make setup-capabilities"
+        echo -e "  make start-demo  # No sudo needed after setup"
+        echo ""
+        echo -e "${YELLOW}Option 2:${NC} Use sudo each time"
+        echo -e "  sudo make start-demo"
+        echo ""
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        print_status "macOS detected. Packet capture requires sudo:"
+        echo -e "  sudo make start-demo"
+        echo ""
+    else
+        print_status "Please run with appropriate privileges for packet capture"
+        echo -e "  sudo make start-demo"
+        echo ""
+    fi
+    
+    print_status "For detailed setup instructions, see SETUP.md"
     exit 1
 fi
 

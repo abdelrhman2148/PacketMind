@@ -11,6 +11,7 @@ help:
 	@echo "  make setup           - Complete setup (install all dependencies)"
 	@echo "  make install-backend - Install Python backend dependencies"
 	@echo "  make install-frontend- Install React frontend dependencies"
+	@echo "  make setup-capabilities - Setup Linux capabilities (Linux only)"
 	@echo ""
 	@echo "Demo Commands:"
 	@echo "  make start-demo      - Start both backend and frontend services"
@@ -23,16 +24,25 @@ help:
 	@echo "  make test-frontend  - Run frontend tests only"
 	@echo "  make clean          - Clean build artifacts and caches"
 	@echo ""
+	@echo "Platform-Specific Setup:"
+	@echo "  Linux:   make setup-capabilities  # Set capabilities, then 'make start-demo'"
+	@echo "  macOS:   sudo make start-demo     # Requires sudo"
+	@echo "  Windows: Run as Administrator     # See SETUP.md for details"
+	@echo ""
 	@echo "Requirements:"
 	@echo "  - Python 3.8+ with pip"
 	@echo "  - Node.js 16+ with npm"
-	@echo "  - sudo privileges for packet capture"
-	@echo "  - Linux: NET_ADMIN capability or sudo"
-	@echo "  - macOS: Admin privileges for network access"
+	@echo "  - Packet capture privileges (platform-specific)"
 
 # Complete setup
 setup: install-backend install-frontend
 	@echo "✅ Setup complete! Run 'make start-demo' to begin."
+
+# Setup Linux capabilities (Linux only)
+setup-capabilities:
+	@echo "🔧 Setting up Linux capabilities for packet capture..."
+	@./scripts/setup-capabilities.sh
+	@echo "✅ Capabilities setup complete!"
 
 # Install backend dependencies
 install-backend:

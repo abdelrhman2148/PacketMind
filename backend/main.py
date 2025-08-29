@@ -18,6 +18,12 @@ from fastapi.responses import JSONResponse
 from models import PacketOut, NetworkInterface, SystemStatus, CaptureSettings, ExplainIn, ExplainOut, AnomalyAlert
 from capture import PacketStreamer
 from anomaly import AnomalyDetector, AnomalyConfig
+from privileges import (
+    check_packet_capture_privileges, 
+    get_privilege_status, 
+    get_setup_instructions,
+    PrivilegeError
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -269,9 +275,16 @@ async def lifespan(app: FastAPI):
     anomaly_detector = AnomalyDetector(config=anomaly_config)
     logger.info("Initialized anomaly detection system")
     
-    # Start packet capture on default interface
-    if not packet_streamer.start():
-        logger.warning("Failed to start packet capture - continuing without capture")
+    # Check privileges before starting packet capture
+    if not check_packet_capture_privileges():
+        privilege_status = get_privilege_status()
+        logger.warning(f"Insufficient privileges for packet capture on {privilege_status['platform']}")
+        logger.warning("Application will start but packet capture will be disabled")
+        logger.warning("See /privileges endpoint for setup instructions")
+    else:
+        # Start packet capture on default interface
+        if not packet_streamer.start():
+            logger.warning("Failed to start packet capture - continuing without capture")
     
     # Start packet broadcaster task
     broadcaster_task = asyncio.create_task(packet_broadcaster())
@@ -352,6 +365,21 @@ async def update_capture_settings(settings: CaptureSettings):
     Implements requirements 4.2, 4.3, 4.4 for dynamic configuration.
     """
     try:
+        # Check privileges first
+        if not check_packet_capture_privileges():
+            privilege_status = get_privilege_status()
+            setup_instructions = get_setup_instructions()
+            
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "Insufficient privileges for packet capture",
+                    "platform": privilege_status["platform"],
+                    "message": setup_instructions["error_message"],
+                    "suggestions": setup_instructions["suggestions"][:3]
+                }
+            )
+        
         # Validate interface exists
         available_interfaces = PacketStreamer.get_interfaces()
         if settings.iface not in available_interfaces:
@@ -373,10 +401,24 @@ async def update_capture_settings(settings: CaptureSettings):
         success = packet_streamer.restart(settings.iface, settings.bpf)
         
         if not success:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to restart packet capture with new settings"
-            )
+            # Provide more detailed error information
+            privilege_status = get_privilege_status()
+            if not privilege_status["has_privileges"]:
+                setup_instructions = get_setup_instructions()
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "Packet capture failed due to insufficient privileges",
+                        "platform": privilege_status["platform"],
+                        "message": setup_instructions["error_message"],
+                        "suggestions": setup_instructions["suggestions"][:3]
+                    }
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to restart packet capture with new settings"
+                )
         
         # Notify connected clients of configuration change
         config_message = {
@@ -417,6 +459,53 @@ async def get_status():
     except Exception as e:
         logger.error(f"Failed to get status: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve system status")
+
+@app.get("/privileges")
+async def get_privileges():
+    """
+    Get privilege status and setup instructions for packet capture.
+    Implements requirements 1.5, 6.2, 6.5 for privilege validation and guidance.
+    """
+    try:
+        privilege_status = get_privilege_status()
+        setup_instructions = get_setup_instructions()
+        
+        return {
+            "status": "success",
+            "privilege_status": privilege_status,
+            "setup_instructions": setup_instructions
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get privilege information: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve privilege information")
+
+@app.get("/privileges/check")
+async def check_privileges():
+    """
+    Check if current process has packet capture privileges.
+    Returns simple boolean result for quick privilege validation.
+    """
+    try:
+        has_privileges = check_packet_capture_privileges()
+        privilege_status = get_privilege_status()
+        
+        response = {
+            "has_privileges": has_privileges,
+            "platform": privilege_status["platform"],
+            "privilege_level": privilege_status["privilege_level"]
+        }
+        
+        if not has_privileges:
+            setup_instructions = get_setup_instructions()
+            response["error_message"] = setup_instructions["error_message"]
+            response["suggestions"] = setup_instructions["suggestions"][:3]  # Top 3 suggestions
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Failed to check privileges: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check privileges")
 
 @app.get("/anomaly/stats")
 async def get_anomaly_stats():

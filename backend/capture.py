@@ -13,6 +13,7 @@ from scapy.all import sniff, get_if_list, Packet
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.inet6 import IPv6
 from models import PacketOut
+from privileges import check_packet_capture_privileges, PrivilegeError, get_privilege_status
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class PacketStreamer:
     def start(self, interface: str = None, bpf_filter: str = None) -> bool:
         """
         Start packet capture in background thread.
+        Implements requirement 1.5 for privilege validation.
         
         Args:
             interface: Network interface to capture on (None for default)
@@ -57,6 +59,13 @@ class PacketStreamer:
                 return False
                 
             try:
+                # Check packet capture privileges first
+                if not check_packet_capture_privileges():
+                    privilege_status = get_privilege_status()
+                    logger.error(f"Insufficient privileges for packet capture on {privilege_status['platform']}")
+                    logger.error("Run with sudo or set appropriate capabilities")
+                    return False
+                
                 # Validate interface if specified
                 if interface and interface not in get_if_list():
                     logger.error(f"Interface {interface} not found")

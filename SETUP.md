@@ -24,12 +24,16 @@ sudo apt install build-essential libpcap-dev
 
 #### Packet Capture Permissions
 ```bash
-# Option 1: Use sudo (simple but requires password)
-sudo make start-demo
+# Option 1: Automated capability setup (recommended)
+make setup-capabilities
+make start-demo  # No sudo needed after setup
 
-# Option 2: Set capabilities (recommended for development)
+# Option 2: Manual capability setup
 sudo setcap cap_net_raw,cap_net_admin=eip $(which python3)
 make start-demo  # No sudo needed after this
+
+# Option 3: Use sudo (simple but requires password each time)
+sudo make start-demo
 ```
 
 ### macOS
@@ -146,13 +150,30 @@ docker-compose down
 
 ### Packet Capture Privileges
 
-#### Linux Capabilities (Recommended)
+#### Automated Setup (Recommended)
+```bash
+# Use the automated setup script (Linux only)
+make setup-capabilities
+
+# Check privilege status
+curl http://localhost:8000/privileges/check
+```
+
+#### Linux Capabilities (Manual Setup)
 ```bash
 # Set capabilities for Python binary
 sudo setcap cap_net_raw,cap_net_admin=eip $(which python3)
 
 # Verify capabilities
 getcap $(which python3)
+
+# Test privileges
+python3 -c "
+import sys
+sys.path.append('backend')
+from privileges import check_packet_capture_privileges
+print('Privileges available:', check_packet_capture_privileges())
+"
 ```
 
 #### Sudo Configuration
@@ -309,14 +330,20 @@ server {
 
 #### "Permission denied" errors
 ```bash
-# Solution 1: Use sudo
+# Solution 1: Use automated setup (Linux)
+make setup-capabilities
+
+# Solution 2: Use sudo
 sudo make start-demo
 
-# Solution 2: Set capabilities (Linux)
+# Solution 3: Manual capability setup (Linux)
 sudo setcap cap_net_raw,cap_net_admin=eip $(which python3)
 
-# Solution 3: Add user to netdev group (Linux)
+# Solution 4: Add user to netdev group (Linux, requires logout/login)
 sudo usermod -a -G netdev $USER
+
+# Check current privilege status
+curl http://localhost:8000/privileges/check
 ```
 
 #### "No module named 'scapy'" errors
