@@ -24,29 +24,26 @@ from privileges import (
     get_setup_instructions,
     PrivilegeError
 )
+from config import init_config, get_config, AppConfig
 
-# Configure logging with more detailed format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('wireshark_web.log', mode='a')
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# AI service configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-USE_MOCK_AI = os.getenv("USE_MOCK_AI", "true").lower() == "true"
-AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "20"))  # 20 second timeout
+# Initialize configuration first
+try:
+    app_config = init_config()
+    logger = logging.getLogger(__name__)
+    logger.info("Configuration initialized successfully")
+except Exception as e:
+    # Fallback logging if config initialization fails
+    logging.basicConfig(level=logging.ERROR)
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to initialize configuration: {e}")
+    raise
 
 # Initialize OpenAI client if API key is available
 openai_client = None
-if OPENAI_API_KEY and not USE_MOCK_AI:
+if app_config.ai.api_key and not app_config.ai.use_mock:
     try:
         import openai
-        openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        openai_client = openai.OpenAI(api_key=app_config.ai.api_key)
         logger.info("OpenAI client initialized successfully")
     except ImportError:
         logger.warning("OpenAI package not available, falling back to mock responses")
@@ -205,7 +202,7 @@ Keep the response under 200 words and focus on practical insights for network mo
                 max_tokens=300,
                 temperature=0.3
             ),
-            timeout=AI_TIMEOUT
+            timeout=app_config.ai.timeout
         )
         
         return response.choices[0].message.content.strip()
@@ -301,12 +298,12 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Wireshark+ Web API")
     
-    # Initialize anomaly detector with configuration from environment
+    # Initialize anomaly detector with configuration
     anomaly_config = AnomalyConfig(
-        window_size=int(os.getenv("ANOMALY_WINDOW_SIZE", "60")),
-        threshold=float(os.getenv("ANOMALY_THRESHOLD", "3.0")),
-        min_samples=int(os.getenv("ANOMALY_MIN_SAMPLES", "10")),
-        alert_cooldown=int(os.getenv("ANOMALY_ALERT_COOLDOWN", "30"))
+        window_size=app_config.anomaly.window_size,
+        threshold=app_config.anomaly.threshold,
+        min_samples=app_config.anomaly.min_samples,
+        alert_cooldown=app_config.anomaly.alert_cooldown
     )
     
     # Create anomaly detector (alert callback will be handled in broadcaster)
@@ -545,6 +542,46 @@ async def check_privileges():
         logger.error(f"Failed to check privileges: {e}")
         raise HTTPException(status_code=500, detail="Failed to check privileges")
 
+@app.get("/config")
+async def get_configuration():
+    """
+    Get current application configuration (sanitized for security).
+    Implements requirement 6.3 for configuration visibility.
+    """
+    try:
+        config = get_config()
+        
+        # Return sanitized configuration (no sensitive data)
+        return {
+            "ai": {
+                "has_api_key": bool(config.ai.api_key),
+                "use_mock": config.ai.use_mock,
+                "timeout": config.ai.timeout
+            },
+            "capture": {
+                "default_interface": config.capture.default_interface,
+                "default_bpf_filter": config.capture.default_bpf_filter
+            },
+            "server": {
+                "host": config.server.host,
+                "port": config.server.port
+            },
+            "logging": {
+                "level": config.logging.level
+            },
+            "anomaly": {
+                "window_size": config.anomaly.window_size,
+                "threshold": config.anomaly.threshold,
+                "min_samples": config.anomaly.min_samples,
+                "alert_cooldown": config.anomaly.alert_cooldown
+            },
+            "dev_mode": config.dev_mode
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get configuration: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve configuration")
+
 @app.get("/anomaly/stats")
 async def get_anomaly_stats():
     """
@@ -645,7 +682,7 @@ async def explain_packet(request: ExplainIn):
             raise HTTPException(status_code=400, detail="Packet summary is required")
         
         # Determine whether to use OpenAI or mock response
-        use_mock = USE_MOCK_AI or not openai_client
+        use_mock = app_config.ai.use_mock or not openai_client
         
         if use_mock:
             # Use mock AI response
