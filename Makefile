@@ -22,6 +22,10 @@ help:
 	@echo "  make test           - Run all tests (backend and frontend)"
 	@echo "  make test-backend   - Run backend tests only"
 	@echo "  make test-frontend  - Run frontend tests only"
+	@echo "  make test-performance - Run comprehensive performance tests"
+	@echo "  make test-load      - Run WebSocket load test"
+	@echo "  make monitor        - Start performance monitoring"
+	@echo "  make perf-check     - Quick performance check"
 	@echo "  make clean          - Clean build artifacts and caches"
 	@echo ""
 	@echo "Platform-Specific Setup:"
@@ -92,6 +96,28 @@ test-backend:
 test-frontend:
 	@echo "🧪 Running frontend tests..."
 	cd frontend && npm test
+
+# Run performance tests
+test-performance:
+	@echo "⚡ Running performance tests..."
+	@echo "This will test latency, memory usage, and concurrent client handling"
+	cd backend && python run_performance_tests.py
+
+# Run WebSocket load test
+test-load:
+	@echo "🔄 Running WebSocket load test..."
+	cd backend && python test_load_websocket.py --clients 20 --duration 60
+
+# Monitor performance
+monitor:
+	@echo "📊 Starting performance monitoring..."
+	@echo "Press Ctrl+C to stop monitoring"
+	cd backend && python monitor_performance.py
+
+# Quick performance check
+perf-check:
+	@echo "⚡ Quick performance check..."
+	cd backend && python monitor_performance.py --once
 
 # Clean build artifacts
 clean:

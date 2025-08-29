@@ -123,10 +123,22 @@ function App() {
               bpf: data.bpf_filter || ''
             })
           } else {
-            // Handle packet data
+            // Handle packet data with optimized buffer management
             setPackets(prev => {
-              const newPackets = [data, ...prev.slice(0, 499)] // Keep last 500 packets
-              return newPackets
+              // Implement efficient buffer management per requirement 2.3
+              const maxPackets = 500
+              const dropThreshold = 450 // Start dropping when approaching limit
+              
+              if (prev.length >= dropThreshold) {
+                // Drop older packets more aggressively when approaching limit
+                const keepCount = Math.floor(maxPackets * 0.7) // Keep 70% of max
+                const newPackets = [data, ...prev.slice(0, keepCount)]
+                return newPackets
+              } else {
+                // Normal operation
+                const newPackets = [data, ...prev.slice(0, maxPackets - 1)]
+                return newPackets
+              }
             })
             
             // Update packet rate calculation

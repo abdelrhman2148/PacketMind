@@ -63,18 +63,39 @@ class ConnectionManager:
     """
     Manages WebSocket connections for packet broadcasting.
     Implements requirements 2.2, 2.4 for client management and cleanup.
+    Enhanced with performance optimizations per requirement 2.3.
     """
     
-    def __init__(self):
+    def __init__(self, max_connections: int = 50):
         self.active_connections: Set[WebSocket] = set()
+        self.max_connections = max_connections
         self._lock = asyncio.Lock()
+        self._broadcast_queue = asyncio.Queue(maxsize=1000)
+        self._broadcast_task = None
+        self._stats = {
+            'messages_sent': 0,
+            'messages_failed': 0,
+            'connections_total': 0,
+            'connections_rejected': 0
+        }
     
     async def connect(self, websocket: WebSocket):
         """Accept new WebSocket connection and add to active list."""
-        await websocket.accept()
         async with self._lock:
+            if len(self.active_connections) >= self.max_connections:
+                self._stats['connections_rejected'] += 1
+                await websocket.close(code=1013, reason="Server overloaded")
+                raise HTTPException(status_code=503, detail="Too many connections")
+            
+            await websocket.accept()
             self.active_connections.add(websocket)
+            self._stats['connections_total'] += 1
+            
         logger.info(f"Client connected. Total connections: {len(self.active_connections)}")
+        
+        # Start broadcast task if not running
+        if not self._broadcast_task or self._broadcast_task.done():
+            self._broadcast_task = asyncio.create_task(self._broadcast_worker())
     
     async def disconnect(self, websocket: WebSocket):
         """Remove WebSocket connection from active list."""
@@ -84,41 +105,88 @@ class ConnectionManager:
     
     async def broadcast(self, message: str):
         """
-        Broadcast message to all connected clients.
-        Automatically removes disconnected clients.
-        Implements requirement 2.5 for WebSocket error recovery.
+        Queue message for efficient broadcasting.
+        Implements requirement 2.3 for efficient WebSocket broadcasting.
         """
-        if not self.active_connections:
-            return
-            
-        # Create copy of connections to avoid modification during iteration
-        async with self._lock:
-            connections = self.active_connections.copy()
-        
-        disconnected = set()
-        
-        for connection in connections:
+        try:
+            self._broadcast_queue.put_nowait(message)
+        except asyncio.QueueFull:
+            logger.warning("Broadcast queue full, dropping message")
+    
+    async def _broadcast_worker(self):
+        """
+        Background worker for efficient message broadcasting.
+        Batches messages and handles disconnections efficiently.
+        """
+        while True:
             try:
-                await connection.send_text(message)
-            except ConnectionResetError as e:
-                logger.info(f"Client connection reset: {e}")
-                disconnected.add(connection)
-            except WebSocketDisconnect as e:
-                logger.info(f"Client WebSocket disconnected: {e}")
-                disconnected.add(connection)
+                # Get message from queue with timeout
+                message = await asyncio.wait_for(self._broadcast_queue.get(), timeout=1.0)
+                
+                if not self.active_connections:
+                    continue
+                
+                # Create copy of connections to avoid modification during iteration
+                async with self._lock:
+                    connections = self.active_connections.copy()
+                
+                if not connections:
+                    continue
+                
+                # Broadcast to all connections concurrently
+                tasks = []
+                for connection in connections:
+                    task = asyncio.create_task(self._send_to_client(connection, message))
+                    tasks.append(task)
+                
+                # Wait for all sends to complete
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Process results and remove failed connections
+                disconnected = set()
+                for connection, result in zip(connections, results):
+                    if isinstance(result, Exception):
+                        disconnected.add(connection)
+                        self._stats['messages_failed'] += 1
+                    else:
+                        self._stats['messages_sent'] += 1
+                
+                # Remove disconnected clients
+                if disconnected:
+                    async with self._lock:
+                        self.active_connections -= disconnected
+                    logger.debug(f"Removed {len(disconnected)} disconnected clients. Remaining: {len(self.active_connections)}")
+                
+            except asyncio.TimeoutError:
+                # No messages to process, continue
+                continue
             except Exception as e:
-                logger.warning(f"Failed to send to client (unexpected error): {e}")
-                disconnected.add(connection)
-        
-        # Remove disconnected clients
-        if disconnected:
-            async with self._lock:
-                self.active_connections -= disconnected
-            logger.info(f"Removed {len(disconnected)} disconnected clients. Remaining: {len(self.active_connections)}")
+                logger.error(f"Error in broadcast worker: {e}")
+                await asyncio.sleep(1)
+    
+    async def _send_to_client(self, connection: WebSocket, message: str):
+        """Send message to a single client with error handling."""
+        try:
+            await connection.send_text(message)
+        except (ConnectionResetError, WebSocketDisconnect):
+            # Expected disconnection errors
+            raise
+        except Exception as e:
+            logger.warning(f"Unexpected error sending to client: {e}")
+            raise
     
     def get_connection_count(self) -> int:
         """Get current number of active connections."""
         return len(self.active_connections)
+    
+    def get_stats(self) -> dict:
+        """Get connection manager statistics."""
+        return {
+            **self._stats,
+            'active_connections': len(self.active_connections),
+            'max_connections': self.max_connections,
+            'queue_size': self._broadcast_queue.qsize()
+        }
 
 # Global connection manager
 manager = ConnectionManager()
@@ -494,6 +562,65 @@ async def get_status():
     except Exception as e:
         logger.error(f"Failed to get status: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve system status")
+
+@app.get("/performance/stats")
+async def get_performance_stats():
+    """
+    Get detailed performance statistics.
+    Implements requirement 2.3 for performance monitoring.
+    """
+    try:
+        capture_status = packet_streamer.get_status()
+        connection_stats = manager.get_stats()
+        
+        # Get system memory info
+        try:
+            import psutil
+            memory = psutil.virtual_memory()
+            process = psutil.Process(os.getpid())
+            process_memory = process.memory_info()
+        except ImportError:
+            # Fallback if psutil not available
+            memory = type('obj', (object,), {'total': 0, 'available': 0, 'percent': 0})()
+            process_memory = type('obj', (object,), {'rss': 0})()
+            process = type('obj', (object,), {'memory_percent': lambda: 0, 'cpu_percent': lambda: 0})()
+        
+        return {
+            "capture": {
+                "is_running": capture_status["is_running"],
+                "queue_size": capture_status["queue_size"],
+                "max_queue_size": capture_status["max_queue_size"],
+                "queue_utilization": capture_status["queue_size"] / capture_status["max_queue_size"],
+                "memory_usage_mb": capture_status["memory_usage_mb"],
+                "max_memory_mb": capture_status["max_memory_mb"],
+                "memory_utilization": capture_status["memory_usage_mb"] / capture_status["max_memory_mb"],
+                "stats": capture_status["stats"]
+            },
+            "websocket": {
+                "active_connections": connection_stats["active_connections"],
+                "max_connections": connection_stats["max_connections"],
+                "connection_utilization": connection_stats["active_connections"] / connection_stats["max_connections"],
+                "messages_sent": connection_stats["messages_sent"],
+                "messages_failed": connection_stats["messages_failed"],
+                "success_rate": connection_stats["messages_sent"] / max(1, connection_stats["messages_sent"] + connection_stats["messages_failed"]),
+                "broadcast_queue_size": connection_stats["queue_size"],
+                "connections_total": connection_stats["connections_total"],
+                "connections_rejected": connection_stats["connections_rejected"]
+            },
+            "system": {
+                "total_memory_mb": memory.total / 1024 / 1024,
+                "available_memory_mb": memory.available / 1024 / 1024,
+                "memory_percent": memory.percent,
+                "process_memory_mb": process_memory.rss / 1024 / 1024,
+                "process_memory_percent": process.memory_percent(),
+                "cpu_percent": process.cpu_percent()
+            },
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get performance stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve performance statistics")
 
 @app.get("/privileges")
 async def get_privileges():

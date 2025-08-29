@@ -8,6 +8,8 @@ import time
 import threading
 import queue
 import logging
+import psutil
+import os
 from typing import Optional, Callable, Dict, Any
 from scapy.all import sniff, get_if_list, Packet
 from scapy.layers.inet import IP, TCP, UDP, ICMP
@@ -39,16 +41,19 @@ class PacketStreamer:
     Thread-safe packet capture engine using Scapy.
     Captures packets in background thread and provides normalized packet data
     through a queue for async components.
+    Enhanced with memory monitoring and performance optimizations.
     """
     
-    def __init__(self, max_queue_size: int = 1000):
+    def __init__(self, max_queue_size: int = 1000, max_memory_mb: int = 100):
         """
         Initialize PacketStreamer.
         
         Args:
             max_queue_size: Maximum number of packets to buffer in queue
+            max_memory_mb: Maximum memory usage in MB before dropping packets
         """
         self.max_queue_size = max_queue_size
+        self.max_memory_bytes = max_memory_mb * 1024 * 1024
         self.packet_queue = queue.Queue(maxsize=max_queue_size)
         self.capture_thread: Optional[threading.Thread] = None
         self.stop_event = threading.Event()
@@ -56,6 +61,14 @@ class PacketStreamer:
         self.current_bpf: Optional[str] = None
         self.is_running = False
         self._lock = threading.Lock()
+        self._stats = {
+            'packets_captured': 0,
+            'packets_dropped': 0,
+            'memory_drops': 0,
+            'queue_drops': 0,
+            'capture_errors': 0
+        }
+        self._process = psutil.Process(os.getpid())
         
     def start(self, interface: str = None, bpf_filter: str = None) -> bool:
         """
@@ -227,14 +240,23 @@ class PacketStreamer:
         Get current capture status information.
         
         Returns:
-            dict: Status information including interface, filter, queue size
+            dict: Status information including interface, filter, queue size, memory usage
         """
+        try:
+            memory_info = self._process.memory_info()
+            memory_mb = memory_info.rss / 1024 / 1024
+        except Exception:
+            memory_mb = 0
+        
         return {
             "is_running": self.is_running,
             "interface": self.current_interface,
             "bpf_filter": self.current_bpf,
             "queue_size": self.packet_queue.qsize(),
-            "max_queue_size": self.max_queue_size
+            "max_queue_size": self.max_queue_size,
+            "memory_usage_mb": round(memory_mb, 2),
+            "max_memory_mb": self.max_memory_bytes / 1024 / 1024,
+            "stats": self._stats.copy()
         }
     
     @staticmethod
@@ -377,33 +399,59 @@ class PacketStreamer:
     def _packet_callback(self, packet: Packet):
         """
         Process captured packet and add to queue.
-        Enhanced with comprehensive error handling.
+        Enhanced with memory monitoring and performance optimizations.
         
         Args:
             packet: Raw Scapy packet object
         """
         try:
+            # Check memory usage before processing
+            try:
+                memory_info = self._process.memory_info()
+                if memory_info.rss > self.max_memory_bytes:
+                    self._stats['memory_drops'] += 1
+                    self._stats['packets_dropped'] += 1
+                    logger.debug("Dropping packet due to memory limit")
+                    return
+            except Exception:
+                # Continue if memory check fails
+                pass
+            
             normalized_packet = self._normalize_packet(packet)
             if normalized_packet:
-                # Add to queue, drop oldest if full
+                self._stats['packets_captured'] += 1
+                
+                # Add to queue with optimized dropping strategy
                 try:
                     self.packet_queue.put_nowait(normalized_packet)
                 except queue.Full:
-                    # Remove oldest packet and add new one
-                    try:
-                        dropped_packet = self.packet_queue.get_nowait()
-                        self.packet_queue.put_nowait(normalized_packet)
-                        logger.debug(f"Dropped oldest packet due to full queue: {dropped_packet.summary[:50]}...")
-                    except queue.Empty:
-                        # Queue was emptied by another thread, try again
+                    # Drop multiple old packets to make room
+                    dropped_count = 0
+                    max_drops = min(10, self.packet_queue.qsize() // 4)  # Drop up to 25% of queue
+                    
+                    for _ in range(max_drops):
                         try:
-                            self.packet_queue.put_nowait(normalized_packet)
-                        except queue.Full:
-                            logger.warning("Unable to add packet to queue - queue management issue")
+                            self.packet_queue.get_nowait()
+                            dropped_count += 1
+                        except queue.Empty:
+                            break
+                    
+                    # Try to add new packet
+                    try:
+                        self.packet_queue.put_nowait(normalized_packet)
+                        self._stats['queue_drops'] += dropped_count
+                        self._stats['packets_dropped'] += dropped_count
+                        if dropped_count > 0:
+                            logger.debug(f"Dropped {dropped_count} old packets to make room")
+                    except queue.Full:
+                        self._stats['queue_drops'] += 1
+                        self._stats['packets_dropped'] += 1
+                        logger.warning("Unable to add packet to queue after cleanup")
             else:
                 logger.debug("Packet normalization returned None - skipping unsupported packet")
                         
         except Exception as e:
+            self._stats['capture_errors'] += 1
             logger.error(f"Error processing packet: {e}")
             # Log packet details for debugging if possible
             try:
