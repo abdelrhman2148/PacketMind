@@ -71,6 +71,7 @@ function App() {
   const lastRateUpdateRef = useRef(Date.now())
 
   // WebSocket connection management with automatic reconnection
+  // Enhanced error handling per requirement 2.5
   const connectWebSocket = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return
@@ -80,22 +81,47 @@ function App() {
       wsRef.current = new WebSocket('ws://localhost:8000/ws/packets')
       
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected')
+        console.log('WebSocket connected successfully')
         setConnectionStatus('connected')
         // Clear any pending reconnection attempts
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current)
           reconnectTimeoutRef.current = null
         }
+        
+        // Send initial ping to confirm connection
+        try {
+          wsRef.current.send('ping')
+        } catch (error) {
+          console.warn('Failed to send initial ping:', error)
+        }
       }
 
       wsRef.current.onmessage = (event) => {
         try {
+          // Handle pong responses
+          if (event.data === 'pong') {
+            console.debug('Received pong from server')
+            return
+          }
+          
           const data = JSON.parse(event.data)
           
           if (data.type === 'alert') {
             // Handle anomaly alerts
             setAlerts(prev => [data, ...prev.slice(0, 9)]) // Keep last 10 alerts
+          } else if (data.type === 'connection_status') {
+            console.log('Connection status:', data.message)
+          } else if (data.type === 'error') {
+            console.error('Server error:', data.message)
+            setConnectionStatus('error')
+          } else if (data.type === 'config_change') {
+            console.log('Configuration changed:', data)
+            // Update current settings display
+            setCurrentSettings({
+              iface: data.interface || '',
+              bpf: data.bpf_filter || ''
+            })
           } else {
             // Handle packet data
             setPackets(prev => {
@@ -124,32 +150,61 @@ function App() {
             }
           }
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
+          console.error('Error parsing WebSocket message:', error, 'Raw data:', event.data)
         }
       }
 
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected')
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason)
         setConnectionStatus('disconnected')
-        // Attempt to reconnect after 3 seconds
+        
+        // Determine reconnection strategy based on close code
+        let reconnectDelay = 3000 // Default 3 seconds
+        
+        if (event.code === 1006) {
+          // Abnormal closure, try reconnecting sooner
+          reconnectDelay = 1000
+        } else if (event.code === 1000) {
+          // Normal closure, wait longer
+          reconnectDelay = 5000
+        }
+        
+        // Attempt to reconnect
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('Attempting to reconnect...')
+          console.log('Attempting to reconnect WebSocket...')
           setConnectionStatus('reconnecting')
           connectWebSocket()
-        }, 3000)
+        }, reconnectDelay)
       }
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error)
         setConnectionStatus('error')
+        
+        // Try to reconnect after error
+        setTimeout(() => {
+          if (wsRef.current?.readyState !== WebSocket.OPEN) {
+            console.log('Attempting to reconnect after error...')
+            setConnectionStatus('reconnecting')
+            connectWebSocket()
+          }
+        }, 5000)
       }
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error)
       setConnectionStatus('error')
+      
+      // Retry connection after error
+      setTimeout(() => {
+        console.log('Retrying WebSocket connection after creation error...')
+        setConnectionStatus('reconnecting')
+        connectWebSocket()
+      }, 5000)
     }
   }
 
   // Load available interfaces on component mount
+  // Enhanced error handling for interface loading
   const loadInterfaces = async () => {
     try {
       const interfaceList = await getInterfaces()
@@ -159,13 +214,28 @@ function App() {
         setSelectedInterface(interfaceList[0].name)
         setCurrentSettings(prev => ({ ...prev, iface: interfaceList[0].name }))
       }
+      console.log('Loaded network interfaces:', interfaceList.length)
     } catch (error) {
       console.error('Failed to load interfaces:', error)
-      setSettingsError('Failed to load network interfaces')
+      
+      let errorMessage = 'Failed to load network interfaces'
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Timeout loading network interfaces. Please try refreshing the page.'
+      } else if (error.message.includes('Network error')) {
+        errorMessage = 'Network connection error. Please check if the backend server is running.'
+      } else if (error.message.includes('HTTP 500')) {
+        errorMessage = 'Server error loading interfaces. Please check server logs.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      setSettingsError(errorMessage)
     }
   }
 
   // Handle capture settings update
+  // Enhanced error handling per requirement 4.5
   const handleSettingsUpdate = async () => {
     if (!selectedInterface) {
       setSettingsError('Please select a network interface')
@@ -186,10 +256,38 @@ function App() {
         bpf: bpfFilter
       })
       
-      console.log('Capture settings updated:', result)
+      console.log('Capture settings updated successfully:', result)
+      
+      // Clear any previous errors on success
+      setSettingsError(null)
+      
     } catch (error) {
       console.error('Failed to update capture settings:', error)
-      setSettingsError(error.message || 'Failed to update capture settings')
+      
+      // Provide user-friendly error messages based on error type
+      let errorMessage = 'Failed to update capture settings'
+      
+      if (error.message.includes('HTTP 403')) {
+        errorMessage = 'Insufficient privileges for packet capture. Please run with sudo or set appropriate capabilities.'
+      } else if (error.message.includes('HTTP 400')) {
+        if (error.message.includes('BPF filter')) {
+          errorMessage = 'Invalid BPF filter expression. Please check the syntax and try again.'
+        } else if (error.message.includes('Interface')) {
+          errorMessage = 'Selected network interface is not available. Please choose a different interface.'
+        } else {
+          errorMessage = 'Invalid settings. Please check your input and try again.'
+        }
+      } else if (error.message.includes('HTTP 500')) {
+        errorMessage = 'Server error while updating settings. Please try again or check server logs.'
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Request timeout. The server took too long to respond. Please try again.'
+      } else if (error.message.includes('Network error')) {
+        errorMessage = 'Network connection error. Please check your connection and try again.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      setSettingsError(errorMessage)
     } finally {
       setSettingsLoading(false)
     }
@@ -223,8 +321,12 @@ function App() {
   }
 
   // Handle AI explanation request
+  // Enhanced error handling per requirement 3.5
   const handleExplainPacket = async () => {
-    if (!selectedPacket) return
+    if (!selectedPacket) {
+      console.warn('No packet selected for AI explanation')
+      return
+    }
 
     setAiLoading(true)
     setAiResponse(null)
@@ -232,11 +334,31 @@ function App() {
     try {
       const data = await explainPacket(selectedPacket.summary)
       setAiResponse(data)
+      console.log('AI explanation received:', data.is_mock ? 'mock' : 'real')
     } catch (error) {
       console.error('Error getting AI explanation:', error)
+      
+      // Provide user-friendly error messages based on error type
+      let errorMessage = 'Failed to get AI explanation. Please try again.'
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'AI service timeout. The request took too long to process. Please try again.'
+      } else if (error.message.includes('Network error')) {
+        errorMessage = 'Network connection error. Please check your connection and try again.'
+      } else if (error.message.includes('HTTP 503')) {
+        errorMessage = 'AI service is temporarily unavailable. Please try again later.'
+      } else if (error.message.includes('HTTP 429')) {
+        errorMessage = 'Too many requests. Please wait a moment before trying again.'
+      } else if (error.message.includes('HTTP 401')) {
+        errorMessage = 'AI service authentication failed. Please check API key configuration.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       setAiResponse({
-        explanation: error.message || 'Failed to get AI explanation. Please try again.',
-        is_mock: false
+        explanation: errorMessage,
+        is_mock: false,
+        error: true
       })
     } finally {
       setAiLoading(false)
@@ -500,11 +622,21 @@ function App() {
               </button>
 
               {aiResponse && (
-                <div className={`ai-response ${aiResponse.explanation.includes('Failed to get') || aiResponse.explanation.includes('error') || aiResponse.explanation.includes('HTTP') ? 'error' : ''}`}>
-                  <h3>AI Analysis {aiResponse.is_mock && '(Mock)'}</h3>
+                <div className={`ai-response ${aiResponse.error ? 'error' : ''}`}>
+                  <h3>
+                    AI Analysis {aiResponse.is_mock && '(Mock)'}
+                    {aiResponse.error && ' - Error'}
+                  </h3>
                   <div className="ai-explanation">
                     {aiResponse.explanation}
                   </div>
+                  {aiResponse.error && (
+                    <div className="error-help">
+                      <small>
+                        If this error persists, try selecting a different packet or check the server logs.
+                      </small>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -13,9 +13,25 @@ from scapy.all import sniff, get_if_list, Packet
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.inet6 import IPv6
 from models import PacketOut
-from privileges import check_packet_capture_privileges, PrivilegeError, get_privilege_status
+from privileges import check_packet_capture_privileges, get_privilege_status
 
 logger = logging.getLogger(__name__)
+
+class CaptureError(Exception):
+    """Base exception for packet capture errors."""
+    pass
+
+class PrivilegeError(CaptureError):
+    """Exception raised when insufficient privileges for packet capture."""
+    pass
+
+class InterfaceError(CaptureError):
+    """Exception raised when network interface is invalid or unavailable."""
+    pass
+
+class FilterError(CaptureError):
+    """Exception raised when BPF filter is invalid."""
+    pass
 
 
 class PacketStreamer:
@@ -44,7 +60,7 @@ class PacketStreamer:
     def start(self, interface: str = None, bpf_filter: str = None) -> bool:
         """
         Start packet capture in background thread.
-        Implements requirement 1.5 for privilege validation.
+        Implements requirement 1.5 for privilege validation with enhanced error handling.
         
         Args:
             interface: Network interface to capture on (None for default)
@@ -52,6 +68,11 @@ class PacketStreamer:
             
         Returns:
             bool: True if capture started successfully, False otherwise
+            
+        Raises:
+            PrivilegeError: When insufficient privileges for packet capture
+            InterfaceError: When specified interface is invalid
+            FilterError: When BPF filter is invalid
         """
         with self._lock:
             if self.is_running:
@@ -62,14 +83,24 @@ class PacketStreamer:
                 # Check packet capture privileges first
                 if not check_packet_capture_privileges():
                     privilege_status = get_privilege_status()
-                    logger.error(f"Insufficient privileges for packet capture on {privilege_status['platform']}")
+                    error_msg = f"Insufficient privileges for packet capture on {privilege_status['platform']}"
+                    logger.error(error_msg)
                     logger.error("Run with sudo or set appropriate capabilities")
-                    return False
+                    raise PrivilegeError(error_msg)
                 
                 # Validate interface if specified
-                if interface and interface not in get_if_list():
-                    logger.error(f"Interface {interface} not found")
-                    return False
+                available_interfaces = get_if_list()
+                if interface and interface not in available_interfaces:
+                    error_msg = f"Interface '{interface}' not found. Available interfaces: {available_interfaces}"
+                    logger.error(error_msg)
+                    raise InterfaceError(error_msg)
+                
+                # Validate BPF filter if specified
+                if bpf_filter:
+                    validation_error = self.validate_bpf_filter(bpf_filter)
+                    if validation_error:
+                        logger.error(f"BPF filter validation failed: {validation_error}")
+                        raise FilterError(validation_error)
                     
                 self.current_interface = interface
                 self.current_bpf = bpf_filter
@@ -78,17 +109,22 @@ class PacketStreamer:
                 # Start capture thread
                 self.capture_thread = threading.Thread(
                     target=self._capture_loop,
-                    daemon=True
+                    daemon=True,
+                    name=f"PacketCapture-{interface or 'default'}"
                 )
                 self.capture_thread.start()
                 self.is_running = True
                 
-                logger.info(f"Started packet capture on interface {interface or 'default'}")
+                logger.info(f"Started packet capture on interface {interface or 'default'} with filter '{bpf_filter or 'none'}'")
                 return True
                 
+            except (PrivilegeError, InterfaceError, FilterError):
+                # Re-raise our custom exceptions
+                raise
             except Exception as e:
-                logger.error(f"Failed to start packet capture: {e}")
-                return False
+                error_msg = f"Failed to start packet capture: {e}"
+                logger.error(error_msg)
+                raise CaptureError(error_msg) from e
     
     def stop(self) -> bool:
         """
@@ -281,15 +317,17 @@ class PacketStreamer:
         """
         Main packet capture loop running in background thread.
         Uses Scapy sniff with packet callback for processing.
+        Enhanced with comprehensive error handling per requirement 1.5.
         """
         try:
-            logger.info(f"Starting capture loop on {self.current_interface or 'default'}")
+            logger.info(f"Starting capture loop on {self.current_interface or 'default'} with filter '{self.current_bpf or 'none'}'")
             
             # Configure sniff parameters
             sniff_kwargs = {
                 "prn": self._packet_callback,
                 "stop_filter": lambda p: self.stop_event.is_set(),
                 "store": False,  # Don't store packets in memory
+                "timeout": 1,  # Add timeout to allow periodic checks
             }
             
             if self.current_interface:
@@ -297,17 +335,49 @@ class PacketStreamer:
             if self.current_bpf:
                 sniff_kwargs["filter"] = self.current_bpf
                 
-            # Start sniffing
-            sniff(**sniff_kwargs)
+            # Start sniffing with error recovery
+            retry_count = 0
+            max_retries = 3
             
+            while not self.stop_event.is_set() and retry_count < max_retries:
+                try:
+                    sniff(**sniff_kwargs)
+                    break  # Successful capture, exit retry loop
+                except PermissionError as e:
+                    logger.error(f"Permission denied during packet capture: {e}")
+                    logger.error("Packet capture requires elevated privileges")
+                    break  # Don't retry permission errors
+                except OSError as e:
+                    if "No such device" in str(e) or "Device not found" in str(e):
+                        logger.error(f"Network interface error: {e}")
+                        break  # Don't retry interface errors
+                    else:
+                        retry_count += 1
+                        logger.warning(f"OS error during capture (attempt {retry_count}/{max_retries}): {e}")
+                        if retry_count < max_retries:
+                            time.sleep(1)  # Wait before retry
+                except Exception as e:
+                    retry_count += 1
+                    logger.error(f"Unexpected error in capture loop (attempt {retry_count}/{max_retries}): {e}")
+                    if retry_count < max_retries:
+                        time.sleep(1)  # Wait before retry
+            
+            if retry_count >= max_retries:
+                logger.error("Maximum capture retries exceeded, stopping capture")
+            
+        except KeyboardInterrupt:
+            logger.info("Capture loop interrupted by user")
         except Exception as e:
-            logger.error(f"Capture loop error: {e}")
+            logger.error(f"Fatal error in capture loop: {e}")
         finally:
+            with self._lock:
+                self.is_running = False
             logger.info("Capture loop ended")
     
     def _packet_callback(self, packet: Packet):
         """
         Process captured packet and add to queue.
+        Enhanced with comprehensive error handling.
         
         Args:
             packet: Raw Scapy packet object
@@ -321,13 +391,25 @@ class PacketStreamer:
                 except queue.Full:
                     # Remove oldest packet and add new one
                     try:
-                        self.packet_queue.get_nowait()
+                        dropped_packet = self.packet_queue.get_nowait()
                         self.packet_queue.put_nowait(normalized_packet)
+                        logger.debug(f"Dropped oldest packet due to full queue: {dropped_packet.summary[:50]}...")
                     except queue.Empty:
-                        pass  # Queue was emptied by another thread
+                        # Queue was emptied by another thread, try again
+                        try:
+                            self.packet_queue.put_nowait(normalized_packet)
+                        except queue.Full:
+                            logger.warning("Unable to add packet to queue - queue management issue")
+            else:
+                logger.debug("Packet normalization returned None - skipping unsupported packet")
                         
         except Exception as e:
             logger.error(f"Error processing packet: {e}")
+            # Log packet details for debugging if possible
+            try:
+                logger.debug(f"Problematic packet summary: {packet.summary()}")
+            except Exception:
+                logger.debug("Unable to get packet summary for error logging")
     
     def _normalize_packet(self, packet: Packet) -> Optional[PacketOut]:
         """

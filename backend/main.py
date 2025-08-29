@@ -25,8 +25,15 @@ from privileges import (
     PrivilegeError
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with more detailed format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('wireshark_web.log', mode='a')
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # AI service configuration
@@ -82,6 +89,7 @@ class ConnectionManager:
         """
         Broadcast message to all connected clients.
         Automatically removes disconnected clients.
+        Implements requirement 2.5 for WebSocket error recovery.
         """
         if not self.active_connections:
             return
@@ -95,15 +103,21 @@ class ConnectionManager:
         for connection in connections:
             try:
                 await connection.send_text(message)
+            except ConnectionResetError as e:
+                logger.info(f"Client connection reset: {e}")
+                disconnected.add(connection)
+            except WebSocketDisconnect as e:
+                logger.info(f"Client WebSocket disconnected: {e}")
+                disconnected.add(connection)
             except Exception as e:
-                logger.warning(f"Failed to send to client: {e}")
+                logger.warning(f"Failed to send to client (unexpected error): {e}")
                 disconnected.add(connection)
         
         # Remove disconnected clients
         if disconnected:
             async with self._lock:
                 self.active_connections -= disconnected
-            logger.info(f"Removed {len(disconnected)} disconnected clients")
+            logger.info(f"Removed {len(disconnected)} disconnected clients. Remaining: {len(self.active_connections)}")
     
     def get_connection_count(self) -> int:
         """Get current number of active connections."""
@@ -225,8 +239,11 @@ async def packet_broadcaster():
     Background task that reads packets from streamer and broadcasts to clients.
     Implements requirement 2.1 for real-time streaming with <2 second latency.
     Also handles anomaly detection per requirements 5.1, 5.2.
+    Enhanced with comprehensive error handling per requirement 2.5.
     """
     logger.info("Starting packet broadcaster")
+    consecutive_errors = 0
+    max_consecutive_errors = 10
     
     while True:
         try:
@@ -236,20 +253,41 @@ async def packet_broadcaster():
             if packet:
                 # Add packet to anomaly detector
                 if anomaly_detector:
-                    alert = anomaly_detector.add_packet(packet.ts)
-                    if alert:
-                        await handle_anomaly_alert(alert)
+                    try:
+                        alert = anomaly_detector.add_packet(packet.ts)
+                        if alert:
+                            await handle_anomaly_alert(alert)
+                    except Exception as e:
+                        logger.error(f"Error in anomaly detection: {e}")
+                        # Continue processing packets even if anomaly detection fails
                 
                 # Convert to JSON and broadcast
-                packet_json = packet.model_dump_json()
-                await manager.broadcast(packet_json)
+                try:
+                    packet_json = packet.model_dump_json()
+                    await manager.broadcast(packet_json)
+                    consecutive_errors = 0  # Reset error counter on success
+                except Exception as e:
+                    logger.error(f"Error broadcasting packet: {e}")
+                    consecutive_errors += 1
             
             # Small delay to prevent CPU spinning
             await asyncio.sleep(0.01)
             
+        except KeyboardInterrupt:
+            logger.info("Packet broadcaster interrupted by user")
+            break
         except Exception as e:
-            logger.error(f"Error in packet broadcaster: {e}")
-            await asyncio.sleep(1.0)  # Longer delay on error
+            consecutive_errors += 1
+            logger.error(f"Error in packet broadcaster (#{consecutive_errors}): {e}")
+            
+            # If too many consecutive errors, increase delay to prevent spam
+            if consecutive_errors >= max_consecutive_errors:
+                logger.warning(f"Too many consecutive errors ({consecutive_errors}), increasing delay")
+                await asyncio.sleep(5.0)
+            else:
+                await asyncio.sleep(1.0)
+    
+    logger.info("Packet broadcaster stopped")
 
 # Application lifespan management
 @asynccontextmanager
@@ -645,25 +683,73 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time packet streaming.
     Implements requirements 2.1, 2.2, 2.3, 2.5 for WebSocket communication.
+    Enhanced with comprehensive error handling per requirement 2.5.
     """
-    await manager.connect(websocket)
+    client_id = f"{websocket.client.host}:{websocket.client.port}" if websocket.client else "unknown"
+    logger.info(f"WebSocket connection attempt from {client_id}")
     
     try:
+        await manager.connect(websocket)
+        logger.info(f"WebSocket client {client_id} connected successfully")
+        
+        # Send initial connection confirmation
+        await websocket.send_text(json.dumps({
+            "type": "connection_status",
+            "status": "connected",
+            "message": "WebSocket connection established",
+            "timestamp": time.time()
+        }))
+        
         # Keep connection alive and handle client messages
         while True:
             try:
-                # Wait for client message (ping/pong or commands)
-                data = await websocket.receive_text()
+                # Wait for client message with timeout to detect stale connections
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 
                 # Handle ping messages for connection keepalive
                 if data == "ping":
                     await websocket.send_text("pong")
+                elif data == "status":
+                    # Send status information
+                    status_info = {
+                        "type": "status_response",
+                        "capture_active": packet_streamer.is_running,
+                        "connected_clients": manager.get_connection_count(),
+                        "timestamp": time.time()
+                    }
+                    await websocket.send_text(json.dumps(status_info))
+                else:
+                    logger.debug(f"Received unknown message from {client_id}: {data}")
                 
-            except WebSocketDisconnect:
+            except asyncio.TimeoutError:
+                # Send ping to check if connection is still alive
+                try:
+                    await websocket.send_text("ping")
+                except Exception:
+                    logger.info(f"WebSocket client {client_id} appears to be disconnected (ping failed)")
+                    break
+            except WebSocketDisconnect as e:
+                logger.info(f"WebSocket client {client_id} disconnected normally: {e}")
+                break
+            except ConnectionResetError as e:
+                logger.info(f"WebSocket client {client_id} connection reset: {e}")
                 break
             except Exception as e:
-                logger.error(f"WebSocket error: {e}")
+                logger.error(f"WebSocket error with client {client_id}: {e}")
+                # Try to send error message to client before closing
+                try:
+                    error_msg = {
+                        "type": "error",
+                        "message": "WebSocket communication error",
+                        "timestamp": time.time()
+                    }
+                    await websocket.send_text(json.dumps(error_msg))
+                except Exception:
+                    pass  # Client may already be disconnected
                 break
                 
+    except Exception as e:
+        logger.error(f"Failed to establish WebSocket connection with {client_id}: {e}")
     finally:
         await manager.disconnect(websocket)
+        logger.info(f"WebSocket client {client_id} cleanup completed")
