@@ -517,7 +517,7 @@
   50% { opacity: 0.5; }
 }
 
-/* Responsive design for smaller screens */
+/* Enhanced responsive design */
 @media (max-width: 1200px) {
   .main-content {
     grid-template-columns: 1fr;
@@ -526,6 +526,161 @@
   
   .packet-detail-section {
     max-height: 400px;
+  }
+}
+
+/* Tablet responsive design */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .status-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .control-group {
+    width: 100%;
+  }
+  
+  .control-group select,
+  .control-group input {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .packet-table th:nth-child(2),
+  .packet-table th:nth-child(3),
+  .packet-table td:nth-child(2),
+  .packet-table td:nth-child(3) {
+    display: none;
+  }
+  
+  .main-content {
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Mobile responsive design */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.5rem 1rem;
+  }
+  
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+  
+  .capture-controls {
+    padding: 0.5rem 1rem;
+  }
+  
+  .alerts-section {
+    padding: 0.5rem 1rem;
+  }
+  
+  .packet-table th:nth-child(5),
+  .packet-table th:nth-child(6),
+  .packet-table td:nth-child(5),
+  .packet-table td:nth-child(6) {
+    display: none;
+  }
+  
+  .packet-table th,
+  .packet-table td {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .alert {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .alert-meta {
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+}
+
+/* Accessibility improvements */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #3182ce;
+  color: white;
+  padding: 8px 12px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 9999;
+  font-weight: 600;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Enhanced focus indicators */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #3182ce !important;
+  outline-offset: 2px !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .packet-table th,
+  .packet-table td {
+    border-width: 2px;
+  }
+  
+  .alert {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .alert,
+  .packet-table tbody tr,
+  .explain-button,
+  .apply-button,
+  .clear-filter-button {
+    transition: none !important;
+  }
+  
+  .connection-indicator.reconnecting,
+  .connection-indicator.error {
+    animation: none !important;
+  }
+}
+
+/* Touch target improvements */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input,
+  select,
+  .packet-table tbody tr {
+    min-height: 44px;
+  }
+  
+  .packet-table th,
+  .packet-table td {
+    padding: 0.75rem;
   }
 }
 
