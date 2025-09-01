@@ -1,0 +1,31 @@
+// Simple theme configuration for Chakra UI v3
+const theme = {
+  colors: {
+    brand: {
+      50: '#e6f7ff',
+      100: '#bae7ff',
+      200: '#91d5ff',
+      300: '#69c0ff',
+      400: '#40a9ff',
+      500: '#1890ff',
+      600: '#096dd9',
+      700: '#0050b3',
+      800: '#003a8c',
+      900: '#002766',
+    },
+    wireshark: {
+      blue: '#61dafb',
+      darkBlue: '#1e40af',
+      green: '#10b981',
+      orange: '#f59e0b',
+      red: '#ef4444',
+      yellow: '#fbbf24',
+    }
+  },
+  config: {
+    initialColorMode: 'dark',
+    useSystemColorMode: true,
+  },
+}
+
+export default theme

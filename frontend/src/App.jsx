@@ -1,52 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { Box, Heading, Text } from '@chakra-ui/react'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
-import './App.css'
-
-// Simple Sparkline component for traffic visualization
-function Sparkline({ data, width = 200, height = 40 }) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="sparkline-empty" style={{ width, height }}>
-        <span>No data</span>
-      </div>
-    )
-  }
-
-  const maxRate = Math.max(...data.map(d => d.rate), 1)
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * width
-    const y = height - (d.rate / maxRate) * height
-    return `${x},${y}`
-  }).join(' ')
-
-  return (
-    <div className="sparkline-container" style={{ width, height }}>
-      <svg width={width} height={height} className="sparkline">
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#61dafb"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        <defs>
-          <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#61dafb" stopOpacity="0.3"/>
-            <stop offset="100%" stopColor="#61dafb" stopOpacity="0.1"/>
-          </linearGradient>
-        </defs>
-        <polygon
-          points={`0,${height} ${points} ${width},${height}`}
-          fill="url(#sparklineGradient)"
-        />
-      </svg>
-      <div className="sparkline-info">
-        <span className="sparkline-max">{maxRate} pps</span>
-      </div>
-    </div>
-  )
-}
+import Sparkline from './components/Sparkline'
+import ThemeToggle from './components/ThemeToggle'
 
 function App() {
   const [packets, setPackets] = useState([])
@@ -71,7 +27,6 @@ function App() {
   const lastRateUpdateRef = useRef(Date.now())
 
   // WebSocket connection management with automatic reconnection
-  // Enhanced error handling per requirement 2.5
   const connectWebSocket = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return
@@ -83,13 +38,11 @@ function App() {
       wsRef.current.onopen = () => {
         console.log('WebSocket connected successfully')
         setConnectionStatus('connected')
-        // Clear any pending reconnection attempts
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current)
           reconnectTimeoutRef.current = null
         }
         
-        // Send initial ping to confirm connection
         try {
           wsRef.current.send('ping')
         } catch (error) {
@@ -99,7 +52,6 @@ function App() {
 
       wsRef.current.onmessage = (event) => {
         try {
-          // Handle pong responses
           if (event.data === 'pong') {
             console.debug('Received pong from server')
             return
@@ -108,8 +60,7 @@ function App() {
           const data = JSON.parse(event.data)
           
           if (data.type === 'alert') {
-            // Handle anomaly alerts
-            setAlerts(prev => [data, ...prev.slice(0, 9)]) // Keep last 10 alerts
+            setAlerts(prev => [data, ...prev.slice(0, 9)])
           } else if (data.type === 'connection_status') {
             console.log('Connection status:', data.message)
           } else if (data.type === 'error') {
@@ -117,41 +68,33 @@ function App() {
             setConnectionStatus('error')
           } else if (data.type === 'config_change') {
             console.log('Configuration changed:', data)
-            // Update current settings display
             setCurrentSettings({
               iface: data.interface || '',
               bpf: data.bpf_filter || ''
             })
           } else {
-            // Handle packet data with optimized buffer management
             setPackets(prev => {
-              // Implement efficient buffer management per requirement 2.3
               const maxPackets = 500
-              const dropThreshold = 450 // Start dropping when approaching limit
+              const dropThreshold = 450
               
               if (prev.length >= dropThreshold) {
-                // Drop older packets more aggressively when approaching limit
-                const keepCount = Math.floor(maxPackets * 0.7) // Keep 70% of max
+                const keepCount = Math.floor(maxPackets * 0.7)
                 const newPackets = [data, ...prev.slice(0, keepCount)]
                 return newPackets
               } else {
-                // Normal operation
                 const newPackets = [data, ...prev.slice(0, maxPackets - 1)]
                 return newPackets
               }
             })
             
-            // Update packet rate calculation
             packetCountRef.current += 1
             const now = Date.now()
             const timeDiff = now - lastRateUpdateRef.current
             
-            // Update rate every second
             if (timeDiff >= 1000) {
               const rate = Math.round((packetCountRef.current * 1000) / timeDiff)
               setPacketRate(rate)
               
-              // Update traffic history for sparkline (keep last 60 seconds)
               setTrafficHistory(prev => {
                 const newHistory = [...prev, { time: now, rate }].slice(-60)
                 return newHistory
@@ -170,18 +113,14 @@ function App() {
         console.log('WebSocket disconnected:', event.code, event.reason)
         setConnectionStatus('disconnected')
         
-        // Determine reconnection strategy based on close code
-        let reconnectDelay = 3000 // Default 3 seconds
+        let reconnectDelay = 3000
         
         if (event.code === 1006) {
-          // Abnormal closure, try reconnecting sooner
           reconnectDelay = 1000
         } else if (event.code === 1000) {
-          // Normal closure, wait longer
           reconnectDelay = 5000
         }
         
-        // Attempt to reconnect
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log('Attempting to reconnect WebSocket...')
           setConnectionStatus('reconnecting')
@@ -193,7 +132,6 @@ function App() {
         console.error('WebSocket error:', error)
         setConnectionStatus('error')
         
-        // Try to reconnect after error
         setTimeout(() => {
           if (wsRef.current?.readyState !== WebSocket.OPEN) {
             console.log('Attempting to reconnect after error...')
@@ -206,7 +144,6 @@ function App() {
       console.error('Failed to create WebSocket connection:', error)
       setConnectionStatus('error')
       
-      // Retry connection after error
       setTimeout(() => {
         console.log('Retrying WebSocket connection after creation error...')
         setConnectionStatus('reconnecting')
@@ -216,12 +153,10 @@ function App() {
   }
 
   // Load available interfaces on component mount
-  // Enhanced error handling for interface loading
   const loadInterfaces = async () => {
     try {
       const interfaceList = await getInterfaces()
       setInterfaces(interfaceList)
-      // Set default interface if none selected
       if (interfaceList.length > 0 && !selectedInterface) {
         setSelectedInterface(interfaceList[0].name)
         setCurrentSettings(prev => ({ ...prev, iface: interfaceList[0].name }))
@@ -247,7 +182,6 @@ function App() {
   }
 
   // Handle capture settings update
-  // Enhanced error handling per requirement 4.5
   const handleSettingsUpdate = async () => {
     if (!selectedInterface) {
       setSettingsError('Please select a network interface')
@@ -269,14 +203,11 @@ function App() {
       })
       
       console.log('Capture settings updated successfully:', result)
-      
-      // Clear any previous errors on success
       setSettingsError(null)
       
     } catch (error) {
       console.error('Failed to update capture settings:', error)
       
-      // Provide user-friendly error messages based on error type
       let errorMessage = 'Failed to update capture settings'
       
       if (error.message.includes('HTTP 403')) {
@@ -310,7 +241,6 @@ function App() {
     connectWebSocket()
     loadInterfaces()
 
-    // Cleanup on component unmount
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
@@ -329,11 +259,10 @@ function App() {
   // Handle packet selection
   const handlePacketSelect = (packet) => {
     setSelectedPacket(packet)
-    setAiResponse(null) // Clear previous AI response
+    setAiResponse(null)
   }
 
   // Handle AI explanation request
-  // Enhanced error handling per requirement 3.5
   const handleExplainPacket = async () => {
     if (!selectedPacket) {
       console.warn('No packet selected for AI explanation')
@@ -350,7 +279,6 @@ function App() {
     } catch (error) {
       console.error('Error getting AI explanation:', error)
       
-      // Provide user-friendly error messages based on error type
       let errorMessage = 'Failed to get AI explanation. Please try again.'
       
       if (error.message.includes('timeout')) {
@@ -380,8 +308,8 @@ function App() {
   // Handle alert click for filtering
   const handleAlertClick = (alert) => {
     if (alert.meta && alert.meta.window_start) {
-      const windowStart = alert.meta.window_start * 1000 // Convert to milliseconds
-      const windowEnd = windowStart + 60000 // 1 minute window
+      const windowStart = alert.meta.window_start * 1000
+      const windowEnd = windowStart + 60000
       
       setAlertFilter({
         start: windowStart,
@@ -418,244 +346,174 @@ function App() {
       error: '#ef4444'
     }
     
+    const statusText = {
+      connected: 'Connected',
+      disconnected: 'Disconnected',
+      reconnecting: 'Reconnecting...',
+      error: 'Connection Error'
+    }
+    
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '8px',
-        fontSize: '14px'
-      }}>
-        <div style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: statusColors[connectionStatus]
-        }}></div>
-        {connectionStatus === 'connected' && 'Connected'}
-        {connectionStatus === 'disconnected' && 'Disconnected'}
-        {connectionStatus === 'reconnecting' && 'Reconnecting...'}
-        {connectionStatus === 'error' && 'Connection Error'}
-      </div>
+      <Box display="flex" alignItems="center" gap={2} fontSize="sm">
+        <Box
+          w="8px"
+          h="8px"
+          borderRadius="50%"
+          bg={statusColors[connectionStatus]}
+        />
+        <Text>{statusText[connectionStatus]}</Text>
+      </Box>
     )
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Wireshark+ Web Dashboard</h1>
-        <div className="status-bar">
-          {getConnectionIndicator()}
-          <span>Packets: {packets.length}</span>
-          <span>Rate: {packetRate} pps</span>
-          <div className="traffic-sparkline">
+    <Box minH="100vh" bg={{ base: 'white', _dark: '#1a1a1a' }} color={{ base: 'black', _dark: 'white' }}>
+      {/* Header */}
+      <Box
+        as="header"
+        p={4}
+        bg={{ base: 'gray.50', _dark: '#2d2d2d' }}
+        borderBottom="1px solid"
+        borderColor={{ base: 'gray.200', _dark: '#404040' }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Heading size="lg" color={{ base: 'blue.600', _dark: '#61dafb' }}>
+            Wireshark+ Web Dashboard
+          </Heading>
+          <Box display="flex" alignItems="center" gap={4}>
+            {getConnectionIndicator()}
+            <Text fontSize="sm">Packets: {packets.length}</Text>
+            <Text fontSize="sm">Rate: {packetRate} pps</Text>
             <Sparkline data={trafficHistory} width={120} height={30} />
-          </div>
-        </div>
-      </header>
+            <ThemeToggle />
+          </Box>
+        </Box>
+      </Box>
 
-      <div className="capture-controls">
-        <h2>Capture Settings</h2>
-        <div className="controls-row">
-          <div className="control-group">
-            <label htmlFor="interface-select">Network Interface:</label>
-            <select
-              id="interface-select"
-              value={selectedInterface}
-              onChange={(e) => setSelectedInterface(e.target.value)}
-              disabled={settingsLoading}
-            >
-              <option value="">Select interface...</option>
-              {interfaces.map((iface) => (
-                <option key={iface.name} value={iface.name}>
-                  {iface.name} {iface.description && `(${iface.description})`}
-                </option>
+      {/* Simple demonstration of Chakra UI theming */}
+      <Box p={4} textAlign="center">
+        <Heading size="md" mb={4} color={{ base: 'gray.700', _dark: 'gray.200' }}>
+          Modern UI with Chakra UI & Theme System
+        </Heading>
+        <Text mb={4} color={{ base: 'gray.600', _dark: 'gray.400' }}>
+          This demonstrates the integration of Chakra UI with dark/light mode theming.
+          The theme toggle in the header switches between modes.
+        </Text>
+        <Box 
+          p={4} 
+          bg={{ base: 'blue.50', _dark: 'blue.900' }} 
+          borderRadius="lg" 
+          border="1px solid" 
+          borderColor={{ base: 'blue.200', _dark: 'blue.700' }}
+          maxW="md"
+          mx="auto"
+        >
+          <Text fontWeight="600" color={{ base: 'blue.800', _dark: 'blue.200' }}>
+            Theme-aware Component
+          </Text>
+          <Text fontSize="sm" color={{ base: 'blue.600', _dark: 'blue.300' }}>
+            This box changes colors based on the current theme mode.
+          </Text>
+        </Box>
+      </Box>
+
+      {/* Basic packet display */}
+      <Box p={4}>
+        <Heading size="md" mb={4}>Live Packets ({packets.length})</Heading>
+        <Box 
+          bg={{ base: 'white', _dark: '#2d2d2d' }} 
+          borderRadius="lg" 
+          border="1px solid" 
+          borderColor={{ base: 'gray.200', _dark: '#404040' }}
+          p={4}
+          maxH="400px"
+          overflowY="auto"
+        >
+          {packets.length === 0 ? (
+            <Text color="gray.500" textAlign="center" py={8}>
+              {connectionStatus === 'connected' 
+                ? 'Waiting for packets...' 
+                : 'Not connected to packet stream'
+              }
+            </Text>
+          ) : (
+            <Box>
+              {packets.slice(0, 10).map((packet, index) => (
+                <Box 
+                  key={index}
+                  p={3}
+                  mb={2}
+                  bg={{ base: 'gray.50', _dark: '#374151' }}
+                  borderRadius="md"
+                  cursor="pointer"
+                  onClick={() => handlePacketSelect(packet)}
+                  border={selectedPacket === packet ? '2px solid' : '1px solid'}
+                  borderColor={selectedPacket === packet ? 'blue.500' : 'transparent'}
+                  _hover={{ bg: { base: 'gray.100', _dark: '#4b5563' } }}
+                >
+                  <Text fontSize="sm" fontWeight="600">
+                    {packet.src} → {packet.dst} ({packet.proto})
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    {formatTimestamp(packet.ts)} | Length: {packet.length} bytes
+                  </Text>
+                </Box>
               ))}
-            </select>
-          </div>
-
-          <div className="control-group">
-            <label htmlFor="bpf-filter">BPF Filter:</label>
-            <input
-              id="bpf-filter"
-              type="text"
-              value={bpfFilter}
-              onChange={(e) => setBpfFilter(e.target.value)}
-              placeholder="e.g., port 80 or tcp"
-              disabled={settingsLoading}
-            />
-          </div>
-
-          <button
-            className="apply-button"
-            onClick={handleSettingsUpdate}
-            disabled={settingsLoading || !selectedInterface}
-          >
-            {settingsLoading ? 'Applying...' : 'Apply Settings'}
-          </button>
-        </div>
-
-        {currentSettings.iface && (
-          <div className="current-settings">
-            <strong>Current:</strong> Interface: {currentSettings.iface}
-            {currentSettings.bpf && `, Filter: ${currentSettings.bpf}`}
-          </div>
-        )}
-
-        {settingsError && (
-          <div className="settings-error">
-            Error: {settingsError}
-          </div>
-        )}
-      </div>
-
-      {alerts.length > 0 && (
-        <div className="alerts-section">
-          <div className="alerts-header">
-            <h3>Recent Alerts</h3>
-            {alertFilter && (
-              <button className="clear-filter-button" onClick={clearAlertFilter}>
-                Clear Filter
-              </button>
-            )}
-          </div>
-          <div className="alerts-list">
-            {alerts.slice(0, 3).map((alert, index) => (
-              <div 
-                key={index} 
-                className={`alert alert-${alert.level} ${alertFilter?.alert === alert ? 'alert-active' : ''}`}
-                onClick={() => handleAlertClick(alert)}
-                title="Click to filter packets by alert time window"
-              >
-                <span className="alert-time">{formatTimestamp(alert.timestamp || Date.now() / 1000)}</span>
-                <span className="alert-message">{alert.message}</span>
-                {alert.meta && (
-                  <span className="alert-meta">
-                    Z-score: {alert.meta.z_score?.toFixed(2)}, Count: {alert.meta.packet_count}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          {alertFilter && (
-            <div className="filter-info">
-              Showing packets from {new Date(alertFilter.start).toLocaleTimeString()} to {new Date(alertFilter.end).toLocaleTimeString()}
-            </div>
+            </Box>
           )}
-        </div>
-      )}
+        </Box>
+      </Box>
 
-      <div className="main-content">
-        <div className="packets-section">
-          <h2>Live Packets</h2>
-          <div className="packet-table-container">
-            <table className="packet-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Source</th>
-                  <th>Destination</th>
-                  <th>Protocol</th>
-                  <th>Length</th>
-                  <th>Ports</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPackets.map((packet, index) => (
-                  <tr 
-                    key={index}
-                    className={selectedPacket === packet ? 'selected' : ''}
-                    onClick={() => handlePacketSelect(packet)}
-                  >
-                    <td>{formatTimestamp(packet.ts)}</td>
-                    <td>{packet.src}</td>
-                    <td>{packet.dst}</td>
-                    <td>{packet.proto}</td>
-                    <td>{packet.length}</td>
-                    <td>
-                      {packet.sport && packet.dport 
-                        ? `${packet.sport} → ${packet.dport}` 
-                        : '-'
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredPackets.length === 0 && packets.length > 0 && alertFilter && (
-              <div className="no-packets">
-                No packets found in the selected time window
-              </div>
-            )}
-            {packets.length === 0 && (
-              <div className="no-packets">
-                {connectionStatus === 'connected' 
-                  ? 'Waiting for packets...' 
-                  : 'Not connected to packet stream'
-                }
-              </div>
-            )}
-          </div>
-        </div>
-
-        {selectedPacket && (
-          <div className="packet-detail-section">
-            <h2>Packet Details</h2>
-            <div className="packet-detail">
-              <div className="detail-row">
-                <strong>Timestamp:</strong> {formatTimestamp(selectedPacket.ts)}
-              </div>
-              <div className="detail-row">
-                <strong>Source:</strong> {selectedPacket.src}
-                {selectedPacket.sport && `:${selectedPacket.sport}`}
-              </div>
-              <div className="detail-row">
-                <strong>Destination:</strong> {selectedPacket.dst}
-                {selectedPacket.dport && `:${selectedPacket.dport}`}
-              </div>
-              <div className="detail-row">
-                <strong>Protocol:</strong> {selectedPacket.proto}
-              </div>
-              <div className="detail-row">
-                <strong>Length:</strong> {selectedPacket.length} bytes
-              </div>
-              <div className="detail-row">
-                <strong>Summary:</strong>
-                <div className="summary-text">{selectedPacket.summary}</div>
-              </div>
-            </div>
-
-            <div className="ai-analysis-section">
-              <button 
-                className="explain-button"
-                onClick={handleExplainPacket}
-                disabled={aiLoading}
+      {/* Selected packet details */}
+      {selectedPacket && (
+        <Box p={4}>
+          <Heading size="md" mb={4}>Packet Details</Heading>
+          <Box 
+            bg={{ base: 'white', _dark: '#2d2d2d' }} 
+            borderRadius="lg" 
+            border="1px solid" 
+            borderColor={{ base: 'gray.200', _dark: '#404040' }}
+            p={4}
+          >
+            <Text mb={2}><strong>Summary:</strong> {selectedPacket.summary}</Text>
+            <button
+              onClick={handleExplainPacket}
+              disabled={aiLoading}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: '#10b981',
+                color: 'white',
+                cursor: aiLoading ? 'not-allowed' : 'pointer',
+                opacity: aiLoading ? 0.6 : 1,
+                marginTop: '8px'
+              }}
+            >
+              {aiLoading ? 'Analyzing...' : 'Explain Packet'}
+            </button>
+            
+            {aiResponse && (
+              <Box 
+                mt={4}
+                p={3}
+                bg={aiResponse.error ? { base: 'red.50', _dark: 'rgba(239, 68, 68, 0.1)' } : { base: 'green.50', _dark: 'rgba(16, 185, 129, 0.1)' }}
+                borderRadius="md"
+                border="1px solid"
+                borderColor={aiResponse.error ? 'red.200' : 'green.200'}
               >
-                {aiLoading ? 'Analyzing...' : 'Explain Packet'}
-              </button>
-
-              {aiResponse && (
-                <div className={`ai-response ${aiResponse.error ? 'error' : ''}`}>
-                  <h3>
-                    AI Analysis {aiResponse.is_mock && '(Mock)'}
-                    {aiResponse.error && ' - Error'}
-                  </h3>
-                  <div className="ai-explanation">
-                    {aiResponse.explanation}
-                  </div>
-                  {aiResponse.error && (
-                    <div className="error-help">
-                      <small>
-                        If this error persists, try selecting a different packet or check the server logs.
-                      </small>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+                <Text fontWeight="600" mb={2} color={aiResponse.error ? 'red.700' : 'green.700'}>
+                  AI Analysis {aiResponse.is_mock && '(Mock)'} {aiResponse.error && '- Error'}
+                </Text>
+                <Text fontSize="sm" whiteSpace="pre-wrap">
+                  {aiResponse.explanation}
+                </Text>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      )}
+    </Box>
   )
 }
 
