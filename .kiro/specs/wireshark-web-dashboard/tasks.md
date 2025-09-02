@@ -138,7 +138,7 @@
   - Add focus indicators and skip navigation links
   - _Requirements: 15.2_
 
-- [ ] 18. Implement column customization and drag-and-drop
+- [x] 18. Implement column customization and drag-and-drop
   - Create column configuration panel for packet table
   - Add show/hide functionality for table columns
   - Implement drag-and-drop column reordering
@@ -146,7 +146,7 @@
   - Store column preferences in localStorage
   - _Requirements: 15.1, 15.4_
 
-- [ ] 19. Add contextual tooltips and help system
+- [x] 19. Add contextual tooltips and help system
   - Implement tooltip component for protocol field explanations
   - Add contextual help for BPF filter syntax
   - Create protocol information tooltips (TCP flags, port meanings, etc.)
