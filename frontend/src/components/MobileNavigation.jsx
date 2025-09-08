@@ -72,6 +72,13 @@ const MobileNavigation = ({
       badge: null
     },
     {
+      id: 'timeline',
+      label: 'Timeline & Playback',
+      icon: '⏱️',
+      action: () => handleNavigation('timeline'),
+      badge: null
+    },
+    {
       id: 'capture',
       label: isCapturing ? 'Stop Capture' : 'Start Capture',
       icon: isCapturing ? '⏹️' : '▶️',

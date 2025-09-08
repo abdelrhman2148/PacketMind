@@ -15,6 +15,7 @@ import AdvancedFilterPanel from './components/AdvancedFilterPanel'
 import FilterTags from './components/FilterTags'
 import MobileNavigation from './components/MobileNavigation'
 import MobilePacketList from './components/MobilePacketList'
+import TimelineView from './components/TimelineView'
 import useRealTimeStats from './hooks/useRealTimeStats'
 import { useSearch } from './hooks/useSearch'
 import { useMobileDetection } from './hooks/useMobileGestures'
@@ -41,6 +42,7 @@ function App() {
   const [trafficHistory, setTrafficHistory] = useState([])
   const [alertFilter, setAlertFilter] = useState(null)
   const [filteredPackets, setFilteredPackets] = useState([])
+  const [currentView, setCurrentView] = useState('home') // 'home', 'timeline', 'analytics', etc.
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
   const packetCountRef = useRef(0)
@@ -473,10 +475,29 @@ function App() {
     }
   }, [packets, alertFilter, searchResults, searchQuery, activeFilterCount])
 
-  // Handle navigation clicks from Netflix header
-  const handleNavigation = (navId) => {
-    console.log('Navigation clicked:', navId)
+  // Navigation handler
+  const handleNavigation = (viewId) => {
+    console.log('Navigation to:', viewId)
+    setCurrentView(viewId)
     // Add navigation logic here as needed
+  }
+
+  // Timeline export handler
+  const handleTimelineExport = (exportData) => {
+    console.log('Timeline export:', exportData)
+    
+    // Create download
+    const blob = new Blob([JSON.stringify(exportData.data, null, 2)], {
+      type: 'application/json'
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = exportData.filename || 'timeline_export.json'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   // Handle settings button click
@@ -540,99 +561,174 @@ function App() {
 
   // Mobile app content component
   function MobileAppContent() {
-    return (
-      <Box className="mobile-scroll">
-        {/* Mobile Hero Section */}
-        <Box px={4} pt={6} pb={4}>
-          <NetflixHeroSection
-            connectionStatus={connectionStatus}
-            packetCount={packets.length}
-            packetRate={realTimeStats.currentRate}
-            currentInterface={currentSettings.iface || selectedInterface}
-            isCapturing={realTimeStats.isCapturing}
-            onStartCapture={handleStartCapture}
-            onStopCapture={handleStopCapture}
-            onOpenSettings={handleSettings}
-            onOpenAnalytics={handleOpenAnalytics}
-            trafficHistory={realTimeStats.trafficHistory}
-            alerts={alerts}
-            isMobile={true}
-          />
-        </Box>
-
-        {/* Mobile Search and Filter System */}
-        <Box px={4} pb={4}>
-          <VStack align="stretch" spacing={4}>
-            {/* Compact Search Bar */}
-            <NetflixSearchBar
-              searchQuery={searchQuery}
-              onSearchChange={handleSearchChange}
-              onSearch={executeSearch}
-              onClear={clearSearch}
-              suggestions={suggestions}
-              showSuggestions={showSuggestions}
-              onSuggestionSelect={(suggestion) => {
-                handleSearchChange(suggestion)
-                executeSearch(suggestion)
-              }}
-              searchHistory={searchHistory}
-              isSearching={isSearching}
-              placeholder="Search packets..."
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              isMobile={true}
-            />
-
-            {/* Filter Tags - Horizontal scroll on mobile */}
-            {activeFilterCount > 0 && (
-              <Box className="mobile-horizontal-scroll">
-                <FilterTags
+    // Render different views based on current navigation
+    const renderMobileView = () => {
+      switch (currentView) {
+        case 'timeline':
+          return (
+            <Box px={4} pt={6} pb={4}>
+              <TimelineView
+                packets={filteredPackets}
+                selectedPackets={selectedPacket ? [selectedPacket] : []}
+                isCapturing={realTimeStats.isCapturing}
+                onPacketSelect={handlePacketSelect}
+                onPacketFilter={handlePacketFilter}
+                onExport={handlePacketExport}
+                onTimelineExport={handleTimelineExport}
+                searchFilters={activeFilters}
+              />
+            </Box>
+          )
+        case 'analytics':
+          return (
+            <Box px={4} pt={6} pb={4}>
+              <NetflixCharts
+                packets={filteredPackets}
+                isCapturing={realTimeStats.isCapturing}
+                timeRange="5m"
+                autoRefresh={true}
+              />
+            </Box>
+          )
+        case 'search':
+          return (
+            <Box px={4} pt={6} pb={4}>
+              <VStack align="stretch" spacing={4}>
+                <NetflixSearchBar
+                  searchQuery={searchQuery}
+                  onSearchChange={handleSearchChange}
+                  onSearch={executeSearch}
+                  onClear={clearSearch}
+                  suggestions={suggestions}
+                  showSuggestions={showSuggestions}
+                  onSuggestionSelect={(suggestion) => {
+                    handleSearchChange(suggestion)
+                    executeSearch(suggestion)
+                  }}
+                  searchHistory={searchHistory}
+                  isSearching={isSearching}
+                  placeholder="Search packets..."
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  isMobile={true}
+                />
+                <AdvancedFilterPanel
                   activeFilters={activeFilters}
+                  onAddFilter={addFilter}
                   onRemoveFilter={removeFilter}
                   onClearAll={clearAllFilters}
+                  savedFilters={savedFilters}
+                  onSaveFilters={saveFilterSet}
+                  onLoadFilters={loadFilterSet}
+                  onDeleteFilters={deleteFilterSet}
                   getQuickFilters={getQuickFilters}
-                  onQuickFilter={addFilter}
+                  packets={packets}
+                  isMobile={true}
+                  defaultCollapsed={false}
+                />
+              </VStack>
+            </Box>
+          )
+        case 'packets':
+        case 'home':
+        default:
+          return (
+            <Box className="mobile-scroll">
+              {/* Mobile Hero Section */}
+              <Box px={4} pt={6} pb={4}>
+                <NetflixHeroSection
+                  connectionStatus={connectionStatus}
+                  packetCount={packets.length}
+                  packetRate={realTimeStats.currentRate}
+                  currentInterface={currentSettings.iface || selectedInterface}
+                  isCapturing={realTimeStats.isCapturing}
+                  onStartCapture={handleStartCapture}
+                  onStopCapture={handleStopCapture}
+                  onOpenSettings={handleSettings}
+                  onOpenAnalytics={handleOpenAnalytics}
+                  trafficHistory={realTimeStats.trafficHistory}
+                  alerts={alerts}
                   isMobile={true}
                 />
               </Box>
-            )}
 
-            {/* Collapsible Advanced Filter Panel */}
-            <AdvancedFilterPanel
-              activeFilters={activeFilters}
-              onAddFilter={addFilter}
-              onRemoveFilter={removeFilter}
-              onClearAll={clearAllFilters}
-              savedFilters={savedFilters}
-              onSaveFilters={saveFilterSet}
-              onLoadFilters={loadFilterSet}
-              onDeleteFilters={deleteFilterSet}
-              getQuickFilters={getQuickFilters}
-              packets={packets}
-              isMobile={true}
-              defaultCollapsed={true}
-            />
-          </VStack>
-        </Box>
+              {/* Mobile Search and Filter System */}
+              <Box px={4} pb={4}>
+                <VStack align="stretch" spacing={4}>
+                  {/* Compact Search Bar */}
+                  <NetflixSearchBar
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    onSearch={executeSearch}
+                    onClear={clearSearch}
+                    suggestions={suggestions}
+                    showSuggestions={showSuggestions}
+                    onSuggestionSelect={(suggestion) => {
+                      handleSearchChange(suggestion)
+                      executeSearch(suggestion)
+                    }}
+                    searchHistory={searchHistory}
+                    isSearching={isSearching}
+                    placeholder="Search packets..."
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    isMobile={true}
+                  />
 
-        {/* Mobile Packet List */}
-        <Box h="calc(100vh - 400px)" minH="400px">
-          <MobilePacketList
-            packets={filteredPackets}
-            isCapturing={realTimeStats.isCapturing}
-            searchQuery={searchQuery}
-            activeFilters={activeFilters}
-            onPacketSelect={handlePacketSelect}
-            onPacketFilter={handlePacketFilter}
-            onPacketExport={handlePacketExport}
-            onRefresh={async () => {
-              // Refresh functionality - could reload data or clear cache
-              console.log('Mobile refresh triggered')
-            }}
-          />
-        </Box>
-      </Box>
-    )
+                  {/* Filter Tags - Horizontal scroll on mobile */}
+                  {activeFilterCount > 0 && (
+                    <Box className="mobile-horizontal-scroll">
+                      <FilterTags
+                        activeFilters={activeFilters}
+                        onRemoveFilter={removeFilter}
+                        onClearAll={clearAllFilters}
+                        getQuickFilters={getQuickFilters}
+                        onQuickFilter={addFilter}
+                        isMobile={true}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Collapsible Advanced Filter Panel */}
+                  <AdvancedFilterPanel
+                    activeFilters={activeFilters}
+                    onAddFilter={addFilter}
+                    onRemoveFilter={removeFilter}
+                    onClearAll={clearAllFilters}
+                    savedFilters={savedFilters}
+                    onSaveFilters={saveFilterSet}
+                    onLoadFilters={loadFilterSet}
+                    onDeleteFilters={deleteFilterSet}
+                    getQuickFilters={getQuickFilters}
+                    packets={packets}
+                    isMobile={true}
+                    defaultCollapsed={true}
+                  />
+                </VStack>
+              </Box>
+
+              {/* Mobile Packet List */}
+              <Box h="calc(100vh - 400px)" minH="400px">
+                <MobilePacketList
+                  packets={filteredPackets}
+                  isCapturing={realTimeStats.isCapturing}
+                  searchQuery={searchQuery}
+                  activeFilters={activeFilters}
+                  onPacketSelect={handlePacketSelect}
+                  onPacketFilter={handlePacketFilter}
+                  onPacketExport={handlePacketExport}
+                  onRefresh={async () => {
+                    // Refresh functionality - could reload data or clear cache
+                    console.log('Mobile refresh triggered')
+                  }}
+                />
+              </Box>
+            </Box>
+          )
+      }
+    }
+
+    return renderMobileView()
   }
 
   // Desktop app content component  
@@ -742,6 +838,20 @@ function App() {
             isCapturing={realTimeStats.isCapturing}
             timeRange="5m"
             autoRefresh={true}
+          />
+        </Box>
+
+        {/* Timeline and Playback Section */}
+        <Box mb={8}>
+          <TimelineView
+            packets={filteredPackets}
+            selectedPackets={selectedPacket ? [selectedPacket] : []}
+            isCapturing={realTimeStats.isCapturing}
+            onPacketSelect={handlePacketSelect}
+            onPacketFilter={handlePacketFilter}
+            onExport={handlePacketExport}
+            onTimelineExport={handleTimelineExport}
+            searchFilters={activeFilters}
           />
         </Box>
 
