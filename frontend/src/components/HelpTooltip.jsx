@@ -8,7 +8,7 @@ import {
   Code,
   Divider
 } from '@chakra-ui/react'
-// import { InfoIcon } from '@chakra-ui/icons'
+// import { MdInfo } from 'react-icons/md'
 
 // Protocol information database
 const PROTOCOL_INFO = {

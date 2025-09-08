@@ -1,6 +1,7 @@
-import { Box, VStack, HStack, Text, Spinner as ChakraSpinner } from '@chakra-ui/react'
+import React from 'react'
+import { Box, Text, HStack, VStack, Flex } from '@chakra-ui/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useLoadingAnimation, usePulseAnimation } from '../hooks/useAnimations.js'
+import { useLoadingAnimation } from '../hooks/useAnimations.js'
 import { rotationAnimations, pulseAnimations, scaleAnimations } from '../animations/transitions.js'
 
 const MotionBox = motion(Box)
@@ -22,8 +23,9 @@ const LoadingSpinner = ({
   className,
   ...props 
 }) => {
-  const { animationPhase, progress: animatedProgress } = useLoadingAnimation(isVisible)
-  const { shouldPulse, pulseKey } = usePulseAnimation(isVisible)
+  const { spinVariants, pulseVariants } = useLoadingAnimation()
+  const [pulseKey, setPulseKey] = React.useState(0)
+  const shouldPulse = isVisible
 
   // Size configurations
   const sizeConfig = {
@@ -190,7 +192,7 @@ const LoadingSpinner = ({
           animate="animate"
           transition={{ delay: 0.2 }}
         >
-          {Math.round(showProgress ? progress : animatedProgress)}%
+          {Math.round(showProgress ? progress : progress)}%
         </MotionBox>
       )}
     </MotionBox>

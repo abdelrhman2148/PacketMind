@@ -30,7 +30,7 @@ import {
   Grid,
   GridItem
 } from '@chakra-ui/react'
-import { SearchIcon, CopyIcon, FilterIcon, DownloadIcon, TimeIcon } from '@chakra-ui/icons'
+import { MdSearch, MdContentCopy, MdFilterList, MdDownload, MdAccessTime } from 'react-icons/md'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo } from 'react'
 import SyntaxHighlighter from './SyntaxHighlighter'
@@ -211,7 +211,7 @@ const NetflixPacketModal = ({
             
             <HStack spacing={4} fontSize="sm" color="netflix.silver">
               <HStack spacing={1}>
-                <TimeIcon />
+                <MdAccessTime />
                 <Text>{formatTimestamp(packetAnalysis.metadata.timestamp)}</Text>
               </HStack>
               <Text>•</Text>
@@ -440,7 +440,7 @@ const NetflixPacketModal = ({
                       </Heading>
                       <InputGroup maxW="300px">
                         <InputLeftElement>
-                          <SearchIcon color="netflix.silver" />
+                          <MdSearch color="netflix.silver" />
                         </InputLeftElement>
                         <Input
                           placeholder="Search protocol data..."
@@ -715,7 +715,7 @@ const NetflixPacketModal = ({
             <Button
               variant="netflixSecondary"
               onClick={() => onFilter(packet)}
-              leftIcon={<FilterIcon />}
+              leftIcon={<MdFilterList />}
             >
               Create Filter
             </Button>
@@ -723,7 +723,7 @@ const NetflixPacketModal = ({
             <Button
               variant="netflixSecondary"
               onClick={() => onExport(packet)}
-              leftIcon={<DownloadIcon />}
+              leftIcon={<MdDownload />}
             >
               Export
             </Button>
@@ -731,7 +731,7 @@ const NetflixPacketModal = ({
             <Button
               variant="ghost"
               onClick={() => handleCopy(JSON.stringify(packet, null, 2))}
-              leftIcon={<CopyIcon />}
+              leftIcon={<MdContentCopy />}
             >
               Copy Data
             </Button>

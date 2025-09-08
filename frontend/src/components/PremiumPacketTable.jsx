@@ -23,7 +23,7 @@ import {
   Tooltip,
   useColorMode,
 } from '@chakra-ui/react'
-import { SearchIcon, ChevronDownIcon } from '@chakra-ui/icons'
+import { MdSearch, MdKeyboardArrowDown } from 'react-icons/md'
 
 const PremiumPacketTable = ({
   packets = [],

@@ -22,7 +22,7 @@ import {
   AlertDescription,
   useDisclosure
 } from '@chakra-ui/react'
-import { SearchIcon, CloseIcon, CopyIcon, FilterIcon, DownloadIcon } from '@chakra-ui/icons'
+import { MdSearch, MdClose, MdContentCopy, MdFilterList, MdDownload } from 'react-icons/md'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useMemo, useCallback } from 'react'
 import SyntaxHighlighter from './SyntaxHighlighter'

@@ -16,7 +16,7 @@ import {
   Collapse
 } from '@chakra-ui/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CloseIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons'
+import { MdClose, MdKeyboardArrowDown, MdKeyboardArrowUp } from 'react-icons/md'
 import { useMemo } from 'react'
 
 const MotionBox = motion(Box)
@@ -237,7 +237,7 @@ const FilterTags = ({
             variant="ghost"
             colorScheme="red"
             onClick={onClearAllFilters}
-            leftIcon={<CloseIcon boxSize={3} />}
+            leftIcon={<MdClose size={16} />}
             fontSize="xs"
           >
             Clear All
@@ -315,7 +315,7 @@ const FilterTags = ({
                     color: variant === 'netflix' ? '#E50914' : '#06B6D4'
                   }}
                   onClick={toggleShowAll}
-                  rightIcon={showAllTags ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                  rightIcon={showAllTags ? <MdKeyboardArrowUp /> : <MdKeyboardArrowDown />}
                 >
                   {showAllTags ? 'Show Less' : `+${hiddenTagsCount} More`}
                 </Button>

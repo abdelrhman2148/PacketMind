@@ -1,386 +1,426 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useInView } from 'framer-motion'
+/**
+ * AI Shark - Advanced Animation Hook
+ * Comprehensive animation state management and performance monitoring
+ */
 
-// Custom hook for managing animations
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useAnimationControls, useMotionValue, useTransform } from 'framer-motion'
+import { usePerformanceMonitoring } from './usePerformanceMonitoring'
+import { animationDuration, animationEasing } from '../animations'
+
+// Animation performance metrics
+const ANIMATION_PERFORMANCE_THRESHOLD = 16.67 // 60fps target
+const MAX_CONCURRENT_ANIMATIONS = 10
+
+/**
+ * Advanced animations hook with performance monitoring and state management
+ * @param {Object} options - Configuration options
+ * @returns {Object} Animation utilities and state
+ */
 export const useAnimations = (options = {}) => {
   const {
-    threshold = 0.1,
-    triggerOnce = true,
-    rootMargin = '0px 0px -100px 0px',
-    enableReducedMotion = true
+    enablePerformanceMonitoring = true,
+    respectReducedMotion = true,
+    maxConcurrentAnimations = MAX_CONCURRENT_ANIMATIONS,
+    onAnimationStart,
+    onAnimationComplete,
+    onPerformanceWarning
   } = options
 
-  const [isVisible, setIsVisible] = useState(false)
-  const [hasAnimated, setHasAnimated] = useState(false)
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-  const ref = useRef(null)
-  const isInView = useInView(ref, { threshold, rootMargin })
+  // Performance monitoring
+  const { trackMetric, getMetrics } = usePerformanceMonitoring()
+  
+  // Animation state management
+  const [activeAnimations, setActiveAnimations] = useState(new Set())
+  const [animationQueue, setAnimationQueue] = useState([])
+  const [isReducedMotion, setIsReducedMotion] = useState(false)
+  const [performanceMode, setPerformanceMode] = useState('normal') // normal, optimized, disabled
+  
+  // Performance tracking
+  const animationTimingsRef = useRef(new Map())
+  const frameCountRef = useRef(0)
+  const lastFrameTimeRef = useRef(0)
+
+  // Framer Motion controls
+  const controls = useAnimationControls()
+  const motionValue = useMotionValue(0)
+  const progress = useTransform(motionValue, [0, 1], [0, 100])
 
   // Check for reduced motion preference
   useEffect(() => {
-    if (enableReducedMotion) {
-      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-      setPrefersReducedMotion(mediaQuery.matches)
-      
-      const handleChange = (e) => setPrefersReducedMotion(e.matches)
-      mediaQuery.addEventListener('change', handleChange)
-      
-      return () => mediaQuery.removeEventListener('change', handleChange)
-    }
-  }, [enableReducedMotion])
+    if (!respectReducedMotion) return
 
-  // Handle visibility changes
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setIsReducedMotion(mediaQuery.matches)
+
+    const handleChange = (e) => setIsReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handleChange)
+    
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [respectReducedMotion])
+
+  // Performance monitoring for animations
   useEffect(() => {
-    if (isInView && (!triggerOnce || !hasAnimated)) {
-      setIsVisible(true)
-      if (triggerOnce) {
-        setHasAnimated(true)
+    if (!enablePerformanceMonitoring) return
+
+    let rafId
+    const monitorPerformance = () => {
+      const now = performance.now()
+      const deltaTime = now - lastFrameTimeRef.current
+      
+      if (lastFrameTimeRef.current > 0) {
+        frameCountRef.current++
+        
+        // Track frame timing
+        if (deltaTime > ANIMATION_PERFORMANCE_THRESHOLD) {
+          trackMetric('animation_frame_drop', deltaTime)
+          
+          if (onPerformanceWarning) {
+            onPerformanceWarning({
+              type: 'frame_drop',
+              deltaTime,
+              threshold: ANIMATION_PERFORMANCE_THRESHOLD,
+              activeAnimationCount: activeAnimations.size
+            })
+          }
+
+          // Auto-optimize performance if too many frame drops
+          if (activeAnimations.size > maxConcurrentAnimations) {
+            setPerformanceMode('optimized')
+          }
+        }
       }
-    } else if (!triggerOnce && !isInView) {
-      setIsVisible(false)
-    }
-  }, [isInView, triggerOnce, hasAnimated])
-
-  // Get animation variants based on reduced motion preference
-  const getVariants = useCallback((variants) => {
-    if (prefersReducedMotion) {
-      // Return simplified variants for reduced motion
-      return {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 }
-      }
-    }
-    return variants
-  }, [prefersReducedMotion])
-
-  // Get transition config based on reduced motion preference
-  const getTransition = useCallback((transition) => {
-    if (prefersReducedMotion) {
-      return { duration: 0.01 }
-    }
-    return transition
-  }, [prefersReducedMotion])
-
-  return {
-    ref,
-    isVisible,
-    hasAnimated,
-    prefersReducedMotion,
-    getVariants,
-    getTransition,
-    shouldAnimate: !prefersReducedMotion
-  }
-}
-
-// Hook for staggered animations
-export const useStaggeredAnimation = (items = [], delay = 0.1) => {
-  const [visibleItems, setVisibleItems] = useState(new Set())
-  const { ref, isVisible, prefersReducedMotion } = useAnimations()
-
-  useEffect(() => {
-    if (isVisible && !prefersReducedMotion) {
-      items.forEach((_, index) => {
-        setTimeout(() => {
-          setVisibleItems(prev => new Set([...prev, index]))
-        }, index * delay * 1000)
-      })
-    } else if (isVisible && prefersReducedMotion) {
-      // Show all items immediately for reduced motion
-      setVisibleItems(new Set(items.map((_, index) => index)))
-    }
-  }, [isVisible, items.length, delay, prefersReducedMotion])
-
-  const isItemVisible = useCallback((index) => {
-    return visibleItems.has(index)
-  }, [visibleItems])
-
-  return {
-    ref,
-    isItemVisible,
-    allVisible: visibleItems.size === items.length
-  }
-}
-
-// Hook for loading animations
-export const useLoadingAnimation = (isLoading = false) => {
-  const [animationPhase, setAnimationPhase] = useState('idle') // 'idle', 'loading', 'success', 'error'
-  const [progress, setProgress] = useState(0)
-  const { prefersReducedMotion } = useAnimations()
-
-  useEffect(() => {
-    if (isLoading) {
-      setAnimationPhase('loading')
-      setProgress(0)
       
-      if (!prefersReducedMotion) {
-        // Simulate progress for visual feedback
-        const interval = setInterval(() => {
-          setProgress(prev => {
-            if (prev >= 90) return prev
-            return prev + Math.random() * 10
+      lastFrameTimeRef.current = now
+      rafId = requestAnimationFrame(monitorPerformance)
+    }
+
+    rafId = requestAnimationFrame(monitorPerformance)
+    return () => cancelAnimationFrame(rafId)
+  }, [activeAnimations.size, enablePerformanceMonitoring, trackMetric, onPerformanceWarning, maxConcurrentAnimations])
+
+  // Animation queue management
+  const processAnimationQueue = useCallback(() => {
+    if (animationQueue.length === 0 || activeAnimations.size >= maxConcurrentAnimations) {
+      return
+    }
+
+    const nextAnimation = animationQueue[0]
+    setAnimationQueue(prev => prev.slice(1))
+    
+    // Execute the animation
+    nextAnimation.execute()
+  }, [animationQueue, activeAnimations.size, maxConcurrentAnimations])
+
+  useEffect(() => {
+    processAnimationQueue()
+  }, [processAnimationQueue])
+
+  // Animation registration and tracking
+  const registerAnimation = useCallback((animationId, animationFn) => {
+    const startTime = performance.now()
+
+    // Add to active animations
+    setActiveAnimations(prev => new Set([...prev, animationId]))
+    animationTimingsRef.current.set(animationId, { startTime })
+
+    if (onAnimationStart) {
+      onAnimationStart(animationId, { activeCount: activeAnimations.size + 1 })
+    }
+
+    // Create wrapper function with cleanup
+    const wrappedAnimation = async () => {
+      try {
+        await animationFn()
+      } finally {
+        const endTime = performance.now()
+        const duration = endTime - startTime
+        
+        // Track animation performance
+        trackMetric('animation_duration', duration)
+        trackMetric('animation_completed', 1)
+        
+        // Remove from active animations
+        setActiveAnimations(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(animationId)
+          return newSet
+        })
+        
+        animationTimingsRef.current.delete(animationId)
+
+        if (onAnimationComplete) {
+          onAnimationComplete(animationId, { 
+            duration, 
+            activeCount: activeAnimations.size - 1 
           })
-        }, 200)
-        
-        return () => clearInterval(interval)
-      } else {
-        setProgress(100)
-      }
-    } else {
-      if (animationPhase === 'loading') {
-        setProgress(100)
-        setAnimationPhase('success')
-        
-        // Reset after success animation
-        setTimeout(() => {
-          setAnimationPhase('idle')
-          setProgress(0)
-        }, 1000)
+        }
       }
     }
-  }, [isLoading, prefersReducedMotion, animationPhase])
 
-  const setError = useCallback(() => {
-    setAnimationPhase('error')
-    setTimeout(() => {
-      setAnimationPhase('idle')
-      setProgress(0)
-    }, 2000)
+    return wrappedAnimation
+  }, [activeAnimations.size, trackMetric, onAnimationStart, onAnimationComplete])
+
+  // Queue animation if too many are active
+  const queueAnimation = useCallback((animationId, animationFn, priority = 0) => {
+    if (activeAnimations.size < maxConcurrentAnimations) {
+      const wrappedAnimation = registerAnimation(animationId, animationFn)
+      return wrappedAnimation()
+    }
+
+    // Add to queue with priority
+    const queueItem = {
+      id: animationId,
+      execute: () => {
+        const wrappedAnimation = registerAnimation(animationId, animationFn)
+        return wrappedAnimation()
+      },
+      priority
+    }
+
+    setAnimationQueue(prev => {
+      const newQueue = [...prev, queueItem]
+      return newQueue.sort((a, b) => b.priority - a.priority)
+    })
+  }, [activeAnimations.size, maxConcurrentAnimations, registerAnimation])
+
+  // Create optimized animation variants based on performance mode
+  const getOptimizedVariants = useCallback((baseVariants) => {
+    if (isReducedMotion) {
+      return {
+        initial: baseVariants.initial || {},
+        animate: { ...baseVariants.animate, transition: { duration: 0.001 } },
+        exit: { ...baseVariants.exit, transition: { duration: 0.001 } }
+      }
+    }
+
+    if (performanceMode === 'optimized') {
+      return {
+        ...baseVariants,
+        animate: {
+          ...baseVariants.animate,
+          transition: {
+            ...baseVariants.animate?.transition,
+            duration: (baseVariants.animate?.transition?.duration || animationDuration.normal / 1000) * 0.5
+          }
+        }
+      }
+    }
+
+    if (performanceMode === 'disabled') {
+      return {
+        initial: baseVariants.animate || {},
+        animate: baseVariants.animate || {},
+        exit: baseVariants.animate || {}
+      }
+    }
+
+    return baseVariants
+  }, [isReducedMotion, performanceMode])
+
+  // Preset animation functions
+  const fadeIn = useCallback((element, options = {}) => {
+    const animationId = `fade-in-${Date.now()}-${Math.random()}`
+    const { duration = animationDuration.normal, delay = 0 } = options
+
+    return queueAnimation(animationId, async () => {
+      await controls.start({
+        opacity: 1,
+        transition: { duration: duration / 1000, delay: delay / 1000, ease: animationEasing.netflix }
+      })
+    })
+  }, [controls, queueAnimation])
+
+  const slideIn = useCallback((element, options = {}) => {
+    const animationId = `slide-in-${Date.now()}-${Math.random()}`
+    const { direction = 'up', duration = animationDuration.normal, delay = 0, distance = 20 } = options
+
+    const directionMap = {
+      up: { y: distance },
+      down: { y: -distance },
+      left: { x: distance },
+      right: { x: -distance }
+    }
+
+    return queueAnimation(animationId, async () => {
+      await controls.start({
+        ...directionMap[direction],
+        opacity: 1,
+        y: direction === 'up' || direction === 'down' ? 0 : undefined,
+        x: direction === 'left' || direction === 'right' ? 0 : undefined,
+        transition: { duration: duration / 1000, delay: delay / 1000, ease: animationEasing.netflix }
+      })
+    })
+  }, [controls, queueAnimation])
+
+  const scaleIn = useCallback((element, options = {}) => {
+    const animationId = `scale-in-${Date.now()}-${Math.random()}`
+    const { duration = animationDuration.normal, delay = 0, fromScale = 0.8 } = options
+
+    return queueAnimation(animationId, async () => {
+      await controls.start({
+        scale: 1,
+        opacity: 1,
+        transition: { duration: duration / 1000, delay: delay / 1000, ease: animationEasing.bounce }
+      })
+    })
+  }, [controls, queueAnimation])
+
+  // Sequence animations
+  const sequence = useCallback(async (animations) => {
+    for (const animation of animations) {
+      await animation()
+    }
   }, [])
 
-  return {
-    animationPhase,
-    progress,
-    setError,
-    isLoading: animationPhase === 'loading'
-  }
-}
+  // Parallel animations
+  const parallel = useCallback(async (animations) => {
+    await Promise.all(animations.map(animation => animation()))
+  }, [])
 
-// Hook for hover animations
-export const useHoverAnimation = () => {
-  const [isHovered, setIsHovered] = useState(false)
-  const [isPressed, setIsPressed] = useState(false)
-  const { prefersReducedMotion } = useAnimations()
+  // Stagger animations
+  const stagger = useCallback(async (animations, staggerDelay = 100) => {
+    const promises = animations.map((animation, index) => 
+      new Promise(resolve => {
+        setTimeout(async () => {
+          await animation()
+          resolve()
+        }, index * staggerDelay)
+      })
+    )
+    await Promise.all(promises)
+  }, [])
 
-  const hoverProps = {
-    onMouseEnter: () => !prefersReducedMotion && setIsHovered(true),
-    onMouseLeave: () => !prefersReducedMotion && setIsHovered(false),
-    onMouseDown: () => !prefersReducedMotion && setIsPressed(true),
-    onMouseUp: () => !prefersReducedMotion && setIsPressed(false),
-    onMouseOut: () => {
-      if (!prefersReducedMotion) {
-        setIsHovered(false)
-        setIsPressed(false)
-      }
-    }
-  }
-
-  const getHoverVariants = useCallback((baseVariants) => {
-    if (prefersReducedMotion) {
-      return {
-        initial: baseVariants.initial,
-        animate: baseVariants.initial
-      }
-    }
+  // Animation utilities
+  const cancelAnimation = useCallback((animationId) => {
+    setActiveAnimations(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(animationId)
+      return newSet
+    })
     
+    setAnimationQueue(prev => prev.filter(item => item.id !== animationId))
+    animationTimingsRef.current.delete(animationId)
+  }, [])
+
+  const cancelAllAnimations = useCallback(() => {
+    controls.stop()
+    setActiveAnimations(new Set())
+    setAnimationQueue([])
+    animationTimingsRef.current.clear()
+  }, [controls])
+
+  const getAnimationStats = useCallback(() => {
+    const metrics = getMetrics()
     return {
-      initial: baseVariants.initial,
-      hover: baseVariants.hover,
-      tap: baseVariants.tap
-    }
-  }, [prefersReducedMotion])
-
-  return {
-    isHovered,
-    isPressed,
-    hoverProps,
-    getHoverVariants,
-    animate: isPressed ? 'tap' : isHovered ? 'hover' : 'initial'
-  }
-}
-
-// Hook for scroll-triggered animations
-export const useScrollAnimation = (options = {}) => {
-  const {
-    offset = 100,
-    throttle = 16
-  } = options
-
-  const [scrollY, setScrollY] = useState(0)
-  const [scrollDirection, setScrollDirection] = useState('up')
-  const [isScrolling, setIsScrolling] = useState(false)
-  const lastScrollY = useRef(0)
-  const scrollTimeout = useRef(null)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      
-      // Update scroll direction
-      if (currentScrollY > lastScrollY.current) {
-        setScrollDirection('down')
-      } else {
-        setScrollDirection('up')
+      activeAnimations: activeAnimations.size,
+      queuedAnimations: animationQueue.length,
+      performanceMode,
+      isReducedMotion,
+      metrics: {
+        averageFrameTime: metrics.animation_frame_drop?.average || 0,
+        totalAnimations: metrics.animation_completed?.total || 0,
+        averageAnimationDuration: metrics.animation_duration?.average || 0
       }
-      
-      setScrollY(currentScrollY)
-      setIsScrolling(true)
-      lastScrollY.current = currentScrollY
-      
-      // Clear existing timeout
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current)
-      }
-      
-      // Set scroll end timeout
-      scrollTimeout.current = setTimeout(() => {
-        setIsScrolling(false)
-      }, 150)
     }
+  }, [activeAnimations.size, animationQueue.length, performanceMode, isReducedMotion, getMetrics])
 
-    const throttledHandler = throttleFunction(handleScroll, throttle)
-    window.addEventListener('scroll', throttledHandler, { passive: true })
+  // Memoized return object
+  return useMemo(() => ({
+    // State
+    activeAnimations: Array.from(activeAnimations),
+    queuedAnimations: animationQueue.length,
+    isReducedMotion,
+    performanceMode,
+
+    // Controls
+    controls,
+    motionValue,
+    progress,
+
+    // Animation functions
+    fadeIn,
+    slideIn,
+    scaleIn,
+    sequence,
+    parallel,
+    stagger,
+
+    // Queue management
+    queueAnimation,
+    registerAnimation,
+
+    // Utilities
+    getOptimizedVariants,
+    cancelAnimation,
+    cancelAllAnimations,
+    getAnimationStats,
+
+    // Performance
+    setPerformanceMode,
     
-    return () => {
-      window.removeEventListener('scroll', throttledHandler)
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current)
-      }
-    }
-  }, [throttle])
-
-  const getParallaxTransform = useCallback((speed = 0.5) => {
-    return `translateY(${scrollY * speed}px)`
-  }, [scrollY])
-
-  return {
-    scrollY,
-    scrollDirection,
-    isScrolling,
-    getParallaxTransform
-  }
+    // Motion values for advanced usage
+    createMotionValue: () => useMotionValue(0),
+    createTransform: (input, output) => useTransform(motionValue, input, output)
+  }), [
+    activeAnimations, animationQueue.length, isReducedMotion, performanceMode,
+    controls, motionValue, progress,
+    fadeIn, slideIn, scaleIn, sequence, parallel, stagger,
+    queueAnimation, registerAnimation,
+    getOptimizedVariants, cancelAnimation, cancelAllAnimations, getAnimationStats,
+    setPerformanceMode
+  ])
 }
 
-// Hook for page transitions
-export const usePageTransition = (isLoading = false) => {
-  const [transitionPhase, setTransitionPhase] = useState('idle') // 'idle', 'entering', 'entered', 'exiting'
-  const { prefersReducedMotion } = useAnimations()
-
-  useEffect(() => {
-    if (isLoading) {
-      setTransitionPhase('entering')
-      
-      if (!prefersReducedMotion) {
-        setTimeout(() => {
-          setTransitionPhase('entered')
-        }, 500)
-      } else {
-        setTransitionPhase('entered')
-      }
-    } else {
-      if (transitionPhase === 'entered') {
-        setTransitionPhase('exiting')
-        
-        setTimeout(() => {
-          setTransitionPhase('idle')
-        }, prefersReducedMotion ? 10 : 300)
-      }
-    }
-  }, [isLoading, prefersReducedMotion, transitionPhase])
-
-  return {
-    transitionPhase,
-    shouldShowLoader: transitionPhase === 'entering' || transitionPhase === 'entered'
-  }
-}
-
-// Hook for real-time pulse animations
-export const usePulseAnimation = (isActive = false, interval = 2000) => {
-  const [pulseCount, setPulseCount] = useState(0)
-  const { prefersReducedMotion } = useAnimations()
-
-  useEffect(() => {
-    if (isActive && !prefersReducedMotion) {
-      const pulseInterval = setInterval(() => {
-        setPulseCount(prev => prev + 1)
-      }, interval)
-      
-      return () => clearInterval(pulseInterval)
-    }
-  }, [isActive, interval, prefersReducedMotion])
-
-  return {
-    shouldPulse: isActive && !prefersReducedMotion,
-    pulseKey: pulseCount // Use as key for re-triggering animations
-  }
-}
-
-// Utility function for throttling
-const throttleFunction = (func, delay) => {
-  let timeoutId
-  let lastExecTime = 0
+// Hook for simple page transitions
+export const usePageTransition = (routePath) => {
+  const { slideIn, fadeIn, getOptimizedVariants } = useAnimations()
   
-  return function (...args) {
-    const currentTime = Date.now()
-    
-    if (currentTime - lastExecTime > delay) {
-      func.apply(this, args)
-      lastExecTime = currentTime
-    } else {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => {
-        func.apply(this, args)
-        lastExecTime = Date.now()
-      }, delay - (currentTime - lastExecTime))
+  const pageVariants = useMemo(() => getOptimizedVariants({
+    initial: { opacity: 0, x: 20, scale: 0.98 },
+    animate: { opacity: 1, x: 0, scale: 1 },
+    exit: { opacity: 0, x: -20, scale: 1.02 }
+  }), [getOptimizedVariants])
+
+  const enterPage = useCallback(() => {
+    return slideIn(null, { direction: 'right', duration: animationDuration.netflix })
+  }, [slideIn])
+
+  const exitPage = useCallback(() => {
+    return slideIn(null, { direction: 'left', duration: animationDuration.fast })
+  }, [slideIn])
+
+  return { pageVariants, enterPage, exitPage }
+}
+
+// Hook for loading state animations
+export const useLoadingAnimation = () => {
+  const { controls, getOptimizedVariants, isReducedMotion } = useAnimations()
+
+  const spinVariants = useMemo(() => getOptimizedVariants({
+    animate: {
+      rotate: isReducedMotion ? 0 : 360,
+      transition: {
+        duration: 1,
+        repeat: isReducedMotion ? 0 : Infinity,
+        ease: 'linear'
+      }
     }
-  }
-}
+  }), [getOptimizedVariants, isReducedMotion])
 
-// Hook for managing multiple animation states
-export const useAnimationState = (initialState = 'idle') => {
-  const [currentState, setCurrentState] = useState(initialState)
-  const [previousState, setPreviousState] = useState(null)
-  const [stateHistory, setStateHistory] = useState([initialState])
-
-  const transitionTo = useCallback((newState, delay = 0) => {
-    if (delay > 0) {
-      setTimeout(() => {
-        setPreviousState(currentState)
-        setCurrentState(newState)
-        setStateHistory(prev => [...prev, newState].slice(-10)) // Keep last 10 states
-      }, delay)
-    } else {
-      setPreviousState(currentState)
-      setCurrentState(newState)
-      setStateHistory(prev => [...prev, newState].slice(-10))
+  const pulseVariants = useMemo(() => getOptimizedVariants({
+    animate: {
+      scale: isReducedMotion ? [1] : [1, 1.1, 1],
+      opacity: isReducedMotion ? [1] : [1, 0.8, 1],
+      transition: {
+        duration: 1.5,
+        repeat: isReducedMotion ? 0 : Infinity,
+        ease: 'easeInOut'
+      }
     }
-  }, [currentState])
+  }), [getOptimizedVariants, isReducedMotion])
 
-  const isInState = useCallback((state) => {
-    return currentState === state
-  }, [currentState])
-
-  const hasBeenInState = useCallback((state) => {
-    return stateHistory.includes(state)
-  }, [stateHistory])
-
-  return {
-    currentState,
-    previousState,
-    stateHistory,
-    transitionTo,
-    isInState,
-    hasBeenInState
-  }
+  return { spinVariants, pulseVariants, controls }
 }
 
-export default {
-  useAnimations,
-  useStaggeredAnimation,
-  useLoadingAnimation,
-  useHoverAnimation,
-  useScrollAnimation,
-  usePageTransition,
-  usePulseAnimation,
-  useAnimationState
-}
+export default useAnimations

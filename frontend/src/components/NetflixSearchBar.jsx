@@ -14,7 +14,7 @@ import {
 } from '@chakra-ui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { SearchIcon, CloseIcon, TimeIcon, StarIcon } from '@chakra-ui/icons'
+import { MdSearch, MdClose, MdAccessTime, MdStar } from 'react-icons/md'
 
 const MotionBox = motion(Box)
 const MotionVStack = motion(VStack)
@@ -176,7 +176,7 @@ const NetflixSearchBar = ({
             animate={isSearching ? { rotate: 360 } : { rotate: 0 }}
             transition={{ duration: 1, repeat: isSearching ? Infinity : 0, ease: 'linear' }}
           >
-            <SearchIcon 
+            <MdSearch 
               color={isFocused ? (variant === 'netflix' ? '#E50914' : '#06B6D4') : 'rgba(255, 255, 255, 0.6)'} 
               boxSize={5}
             />
@@ -216,7 +216,7 @@ const NetflixSearchBar = ({
         {searchQuery && (
           <InputRightElement h={currentSize.h} pr={2}>
             <IconButton
-              icon={<CloseIcon />}
+              icon={<MdClose />}
               size="sm"
               variant="ghost"
               colorScheme="whiteAlpha"
@@ -274,7 +274,7 @@ const NetflixSearchBar = ({
                   <>
                     <Box px={3} py={2}>
                       <HStack spacing={2}>
-                        <TimeIcon boxSize={3} color="rgba(255, 255, 255, 0.5)" />
+                        <MdAccessTime size={12} color="rgba(255, 255, 255, 0.5)" />
                         <Text fontSize="xs" color="rgba(255, 255, 255, 0.5)" fontWeight="medium">
                           Recent Searches
                         </Text>

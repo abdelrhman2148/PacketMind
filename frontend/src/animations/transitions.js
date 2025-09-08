@@ -1,5 +1,4 @@
 // Netflix-inspired animation presets and transitions
-import { Variants } from 'framer-motion'
 
 // Easing functions matching Netflix's design system
 export const netflixEasing = {
@@ -13,7 +12,7 @@ export const netflixEasing = {
 }
 
 // Page transition variants
-export const pageTransitions: Variants = {
+export const pageTransitions = {
   initial: {
     opacity: 0,
     x: -20,
@@ -41,7 +40,7 @@ export const pageTransitions: Variants = {
 }
 
 // Card hover animations
-export const cardAnimations: Variants = {
+export const cardAnimations = {
   initial: {
     scale: 1,
     y: 0,
@@ -69,13 +68,13 @@ export const cardAnimations: Variants = {
 }
 
 // List item stagger animations
-export const listItemAnimations: Variants = {
+export const listItemAnimations = {
   hidden: {
     opacity: 0,
     y: 20,
     scale: 0.95
   },
-  visible: (index: number) => ({
+  visible: (index) => ({
     opacity: 1,
     y: 0,
     scale: 1,
@@ -97,7 +96,7 @@ export const listItemAnimations: Variants = {
 }
 
 // Modal animations
-export const modalAnimations: Variants = {
+export const modalAnimations = {
   hidden: {
     opacity: 0,
     scale: 0.8,
@@ -125,7 +124,7 @@ export const modalAnimations: Variants = {
 }
 
 // Sidebar slide animations
-export const sidebarAnimations: Variants = {
+export const sidebarAnimations = {
   closed: {
     x: '100%',
     transition: {
@@ -145,7 +144,7 @@ export const sidebarAnimations: Variants = {
 }
 
 // Button press animations
-export const buttonAnimations: Variants = {
+export const buttonAnimations = {
   initial: {
     scale: 1,
     boxShadow: '0 4px 15px rgba(229, 9, 20, 0.3)'
@@ -170,7 +169,7 @@ export const buttonAnimations: Variants = {
 }
 
 // Loading content animations
-export const loadingAnimations: Variants = {
+export const loadingAnimations = {
   initial: {
     opacity: 0
   },
@@ -191,7 +190,7 @@ export const loadingAnimations: Variants = {
 }
 
 // Pulse animations for real-time indicators
-export const pulseAnimations: Variants = {
+export const pulseAnimations = {
   pulse: {
     scale: [1, 1.05, 1],
     opacity: [1, 0.8, 1],
@@ -204,7 +203,7 @@ export const pulseAnimations: Variants = {
 }
 
 // Shimmer effect for loading states
-export const shimmerAnimations: Variants = {
+export const shimmerAnimations = {
   shimmer: {
     backgroundPosition: ['200% 0', '-200% 0'],
     transition: {
@@ -216,7 +215,7 @@ export const shimmerAnimations: Variants = {
 }
 
 // Fade animations
-export const fadeAnimations: Variants = {
+export const fadeAnimations = {
   fadeIn: {
     initial: { opacity: 0 },
     animate: {
@@ -237,7 +236,7 @@ export const fadeAnimations: Variants = {
 }
 
 // Scale animations
-export const scaleAnimations: Variants = {
+export const scaleAnimations = {
   scaleIn: {
     initial: {
       scale: 0,
@@ -263,7 +262,7 @@ export const scaleAnimations: Variants = {
 }
 
 // Slide animations
-export const slideAnimations: Variants = {
+export const slideAnimations = {
   slideInLeft: {
     initial: {
       x: -100,
@@ -323,7 +322,7 @@ export const slideAnimations: Variants = {
 }
 
 // Notification animations
-export const notificationAnimations: Variants = {
+export const notificationAnimations = {
   hidden: {
     opacity: 0,
     y: -50,
@@ -350,7 +349,7 @@ export const notificationAnimations: Variants = {
 }
 
 // Progress bar animations
-export const progressAnimations: Variants = {
+export const progressAnimations = {
   loading: {
     width: ['0%', '100%'],
     transition: {
@@ -369,7 +368,7 @@ export const progressAnimations: Variants = {
 }
 
 // Floating animations
-export const floatingAnimations: Variants = {
+export const floatingAnimations = {
   float: {
     y: [-10, 10, -10],
     transition: {
@@ -381,7 +380,7 @@ export const floatingAnimations: Variants = {
 }
 
 // Rotation animations
-export const rotationAnimations: Variants = {
+export const rotationAnimations = {
   spin: {
     rotate: 360,
     transition: {
@@ -401,7 +400,7 @@ export const rotationAnimations: Variants = {
 }
 
 // Container animations for staggered children
-export const containerAnimations: Variants = {
+export const containerAnimations = {
   hidden: {
     opacity: 0
   },

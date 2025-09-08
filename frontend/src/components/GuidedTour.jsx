@@ -27,7 +27,7 @@ import {
   ChevronRightIcon, 
   // InfoIcon,
   // CheckCircleIcon
-// } from '@chakra-ui/icons'
+// } from 'react-icons/md'
 
 // Tour steps configuration
 const TOUR_STEPS = [

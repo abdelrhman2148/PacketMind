@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useDebounce } from './useDebounce'
 
 // Search hook for comprehensive packet filtering and search functionality
@@ -453,8 +453,5 @@ const useDebounceHook = (value, delay) => {
 
   return debouncedValue
 }
-
-// Export useDebounce if not already available
-export const useDebounce = useDebounceHook
 
 export default useSearch

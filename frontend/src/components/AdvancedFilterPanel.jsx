@@ -36,16 +36,16 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useCallback, useMemo } from 'react'
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  SettingsIcon,
-  CloseIcon,
-  AddIcon,
-  SearchIcon,
-  TimeIcon,
-  ViewIcon,
-  StarIcon
-} from '@chakra-ui/icons'
+  MdKeyboardArrowDown,
+  MdKeyboardArrowUp,
+  MdSettings,
+  MdClose,
+  MdAdd,
+  MdSearch,
+  MdAccessTime,
+  MdVisibility,
+  MdStar
+} from 'react-icons/md'
 
 const MotionBox = motion(Box)
 const MotionVStack = motion(VStack)
@@ -253,9 +253,9 @@ const AdvancedFilterPanel = ({
       >
         <HStack justify="space-between" align="center">
           <HStack spacing={3}>
-            <SettingsIcon 
+            <MdSettings 
               color={variant === 'netflix' ? '#E50914' : '#06B6D4'} 
-              boxSize={5} 
+              size={20}
             />
             <VStack align="start" spacing={0}>
               <Text color="netflix.white" fontWeight="semibold" fontSize="md">
@@ -286,7 +286,7 @@ const AdvancedFilterPanel = ({
               animate={{ rotate: isOpen ? 180 : 0 }}
               transition={{ duration: 0.3 }}
             >
-              <ChevronDownIcon color="netflix.silver" boxSize={5} />
+              <MdKeyboardArrowDown color="white" size={20} />
             </MotionBox>
           </HStack>
         </HStack>
@@ -324,7 +324,7 @@ const AdvancedFilterPanel = ({
                     colorScheme="red"
                     onClick={onClearAllFilters}
                     isDisabled={activeFilterCount === 0}
-                    leftIcon={<CloseIcon />}
+                    leftIcon={<MdClose />}
                   >
                     Clear All
                   </Button>
@@ -332,7 +332,7 @@ const AdvancedFilterPanel = ({
                     size="sm"
                     colorScheme={variant === 'netflix' ? 'red' : 'blue'}
                     onClick={() => setShowSaveDialog(!showSaveDialog)}
-                    leftIcon={<StarIcon />}
+                    leftIcon={<MdStar />}
                   >
                     Save
                   </Button>
@@ -486,7 +486,7 @@ const AdvancedFilterPanel = ({
                             <IconButton
                               size="xs"
                               variant="ghost"
-                              icon={<CloseIcon />}
+                              icon={<MdClose />}
                               onClick={() => handleTimeRangeChange(null)}
                             />
                           )}
@@ -541,7 +541,7 @@ const AdvancedFilterPanel = ({
                         </Text>
                         <InputGroup>
                           <InputLeftElement>
-                            <SearchIcon color="rgba(255, 255, 255, 0.5)" />
+                            <MdSearch color="rgba(255, 255, 255, 0.5)" />
                           </InputLeftElement>
                           <Input
                             placeholder="e.g., tcp.port == 80"
@@ -559,7 +559,7 @@ const AdvancedFilterPanel = ({
                           colorScheme={variant === 'netflix' ? 'red' : 'blue'}
                           onClick={handleCustomFilter}
                           isDisabled={!customFilter.trim()}
-                          leftIcon={<AddIcon />}
+                          leftIcon={<MdAdd />}
                         >
                           Add Custom Filter
                         </Button>
@@ -604,14 +604,14 @@ const AdvancedFilterPanel = ({
                                 <IconButton
                                   size="sm"
                                   variant="ghost"
-                                  icon={<ViewIcon />}
+                                  icon={<MdVisibility />}
                                   onClick={() => onLoadFilter(filter)}
                                   colorScheme={variant === 'netflix' ? 'red' : 'blue'}
                                 />
                                 <IconButton
                                   size="sm"
                                   variant="ghost"
-                                  icon={<CloseIcon />}
+                                  icon={<MdClose />}
                                   onClick={() => onDeleteFilter(filter.id)}
                                   colorScheme="red"
                                 />

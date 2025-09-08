@@ -27,7 +27,7 @@ import {
   Container,
   useBreakpointValue,
 } from '@chakra-ui/react'
-import { MoonIcon, SunIcon } from '@chakra-ui/icons'
+import { MdDarkMode, MdLightMode } from 'react-icons/md'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import Sparkline from './components/Sparkline'
 import ThemeToggle from './components/ThemeToggle'

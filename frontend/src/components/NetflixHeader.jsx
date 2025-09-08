@@ -22,14 +22,14 @@ import {
   keyframes
 } from '@chakra-ui/react'
 import {
-  HamburgerIcon,
-  CloseIcon,
-  SettingsIcon,
-  InfoIcon,
-  ChevronDownIcon,
-  SunIcon,
-  MoonIcon
-} from '@chakra-ui/icons'
+  MdMenu,
+  MdClose,
+  MdSettings,
+  MdInfo,
+  MdKeyboardArrowDown,
+  MdLightMode,
+  MdDarkMode
+} from 'react-icons/md'
 
 // Animated shark icon keyframes
 const floatAnimation = keyframes`
@@ -350,7 +350,7 @@ const NetflixHeader = ({
           <Tooltip label={`Switch to ${colorMode === 'dark' ? 'light' : 'dark'} mode`}>
             <IconButton
               aria-label="Toggle color mode"
-              icon={colorMode === 'dark' ? <SunIcon /> : <MoonIcon />}
+              icon={colorMode === 'dark' ? <MdLightMode /> : <MdDarkMode />}
               variant="ghost"
               color="netflix.white"
               size="sm"
@@ -367,7 +367,7 @@ const NetflixHeader = ({
             <MenuButton
               as={IconButton}
               aria-label="Settings menu"
-              icon={<SettingsIcon />}
+              icon={<MdSettings />}
               variant="ghost"
               color="netflix.white"
               size="sm"
@@ -389,7 +389,7 @@ const NetflixHeader = ({
                 _hover={{ bg: 'rgba(255, 255, 255, 0.1)' }}
                 onClick={onSettings}
               >
-                <SettingsIcon mr={3} />
+                <MdSettings style={{ marginRight: '12px' }} />
                 Settings
               </MenuItem>
               <MenuItem
@@ -398,7 +398,7 @@ const NetflixHeader = ({
                 _hover={{ bg: 'rgba(255, 255, 255, 0.1)' }}
                 onClick={onAbout}
               >
-                <InfoIcon mr={3} />
+                <MdInfo style={{ marginRight: '12px' }} />
                 About
               </MenuItem>
             </MenuList>
@@ -410,7 +410,7 @@ const NetflixHeader = ({
               as={Button}
               variant="ghost"
               size="sm"
-              rightIcon={<ChevronDownIcon />}
+              rightIcon={<MdKeyboardArrowDown />}
               color="netflix.white"
               _hover={{
                 bg: 'rgba(255, 255, 255, 0.1)',
@@ -458,7 +458,7 @@ const NetflixHeader = ({
           {isMobile && (
             <IconButton
               aria-label="Toggle mobile menu"
-              icon={isMobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+              icon={isMobileMenuOpen ? <MdClose /> : <MdMenu />}
               variant="ghost"
               color="netflix.white"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

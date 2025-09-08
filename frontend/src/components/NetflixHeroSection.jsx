@@ -15,11 +15,11 @@ import {
   useBreakpointValue
 } from '@chakra-ui/react'
 import {
-  PlayIcon,
-  StopIcon,
-  SettingsIcon,
-  ViewIcon
-} from '@chakra-ui/icons'
+  MdPlayArrow,
+  MdStop,
+  MdSettings,
+  MdVisibility
+} from 'react-icons/md'
 
 // Animated background keyframes
 const pulseGradient = keyframes`
@@ -499,7 +499,7 @@ const NetflixHeroSection = ({
             <Button
               variant="netflix"
               size="lg"
-              leftIcon={isCapturing ? <StopIcon /> : <PlayIcon />}
+              leftIcon={isCapturing ? <MdStop /> : <MdPlayArrow />}
               onClick={isCapturing ? onStopCapture : onStartCapture}
               isDisabled={connectionStatus !== 'connected' && !isCapturing}
               minW="160px"
@@ -510,7 +510,7 @@ const NetflixHeroSection = ({
             <Button
               variant="netflixSecondary"
               size="lg"
-              leftIcon={<ViewIcon />}
+              leftIcon={<MdVisibility />}
               onClick={onOpenAnalytics}
               minW="140px"
             >
@@ -520,7 +520,7 @@ const NetflixHeroSection = ({
             <Button
               variant="ghost"
               size="lg"
-              leftIcon={<SettingsIcon />}
+              leftIcon={<MdSettings />}
               onClick={onOpenSettings}
               color="netflix.white"
               _hover={{

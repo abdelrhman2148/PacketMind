@@ -12,7 +12,7 @@ import {
   useDisclosure,
   Kbd
 } from '@chakra-ui/react'
-// import { QuestionIcon, InfoIcon, RepeatIcon } from '@chakra-ui/icons'
+// import { MdHelpOutline, MdInfo, MdRefresh } from 'react-icons/md'
 import HelpTooltip from './HelpTooltip'
 
 /**
