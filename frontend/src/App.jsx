@@ -8,6 +8,7 @@ import NetflixHeroSection from './components/NetflixHeroSection'
 import NetflixPacketCards from './components/NetflixPacketCards'
 import NetflixPacketModal from './components/NetflixPacketModal'
 import PacketDetailsSidebar from './components/PacketDetailsSidebar'
+import NetflixCharts from './components/NetflixCharts'
 import useRealTimeStats from './hooks/useRealTimeStats'
 
 function App() {
@@ -487,6 +488,16 @@ function App() {
           <NetflixPacketCards
             packets={packets}
             isCapturing={realTimeStats.isCapturing}
+          />
+        </Box>
+
+        {/* Netflix-Style Analytics Dashboard */}
+        <Box mb={8}>
+          <NetflixCharts
+            packets={packets}
+            isCapturing={realTimeStats.isCapturing}
+            timeRange="5m"
+            autoRefresh={true}
           />
         </Box>
 
