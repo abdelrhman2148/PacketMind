@@ -5,6 +5,7 @@ import Sparkline from './components/Sparkline'
 import ThemeToggle from './components/ThemeToggle'
 import NetflixHeader from './components/NetflixHeader'
 import NetflixHeroSection from './components/NetflixHeroSection'
+import NetflixPacketCards from './components/NetflixPacketCards'
 import useRealTimeStats from './hooks/useRealTimeStats'
 
 function App() {
@@ -411,6 +412,14 @@ function App() {
           trafficHistory={realTimeStats.trafficHistory}
           alerts={alerts}
         />
+
+        {/* Netflix-Style Packet Cards */}
+        <Box mb={8}>
+          <NetflixPacketCards
+            packets={packets}
+            isCapturing={realTimeStats.isCapturing}
+          />
+        </Box>
 
         {/* Live Packets Section */}
         <Box mb={8}>
