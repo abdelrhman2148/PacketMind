@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Box, Heading, Text } from '@chakra-ui/react'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import Sparkline from './components/Sparkline'
-import ThemeToggle from './components/ThemeToggle'
+import { ThemeToggle } from './components/ThemeProvider'
 import NetflixHeader from './components/NetflixHeader'
 import NetflixHeroSection from './components/NetflixHeroSection'
 import NetflixPacketCards from './components/NetflixPacketCards'
@@ -454,6 +454,16 @@ function App() {
         onSettings={handleSettings}
         onAbout={handleAbout}
       />
+
+      {/* Theme Toggle - Floating */}
+      <Box
+        position="fixed"
+        top={4}
+        right={4}
+        zIndex={1001}
+      >
+        <ThemeToggle size="sm" iconOnly />
+      </Box>
 
       {/* Main Content Area with Netflix Styling */}
       <Box pt={4} px={{ base: 4, md: 8 }}>
