@@ -1,36 +1,10 @@
 import type { Preview } from '@storybook/react'
-import { ChakraProvider, extendTheme } from '@chakra-ui/react'
+import { ChakraProvider } from '@chakra-ui/react'
 import { BrowserRouter } from 'react-router-dom'
 import React from 'react'
+import { netflixTheme } from '../src/tokens/netflixTheme'
+import '../src/tokens/tokens.css'
 import '../src/styles/accessibility.css'
-
-// Netflix-inspired theme for Storybook
-const netflixTheme = extendTheme({
-  colors: {
-    netflix: {
-      black: '#000000',
-      white: '#FFFFFF',
-      red: '#E50914',
-      silver: '#8C8C8C',
-      darkGray: '#1A1A1A'
-    },
-    wireshark: {
-      accent: '#06B6D4'
-    }
-  },
-  config: {
-    initialColorMode: 'dark',
-    useSystemColorMode: false
-  },
-  styles: {
-    global: {
-      body: {
-        bg: 'netflix.black',
-        color: 'netflix.white'
-      }
-    }
-  }
-})
 
 // Global decorator to wrap stories with providers
 const withProviders = (Story: any) => React.createElement(
@@ -127,11 +101,21 @@ const preview: Preview = {
     docs: {
       theme: {
         base: 'dark',
-        colorPrimary: '#E50914',
-        colorSecondary: '#06B6D4',
-        appBg: '#000000',
-        appContentBg: '#1A1A1A',
-        textColor: '#FFFFFF'
+        brandTitle: 'AI Shark Design System',
+        brandUrl: '/',
+        colorPrimary: '#E50914', // Netflix Red
+        colorSecondary: '#06B6D4', // Wireshark Cyan
+        appBg: '#0A0A0A', // Deep black
+        appContentBg: '#1A1A1A', // Dark gray
+        appBorderColor: 'rgba(255, 255, 255, 0.1)',
+        textColor: '#FFFFFF',
+        textInverseColor: '#000000',
+        barTextColor: '#FFFFFF',
+        barSelectedColor: '#06B6D4',
+        barBg: '#1F1F1F',
+        inputBg: '#2A2A2A',
+        inputBorder: 'rgba(255, 255, 255, 0.2)',
+        inputTextColor: '#FFFFFF'
       }
     }
   },

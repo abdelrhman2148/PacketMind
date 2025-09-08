@@ -1,0 +1,228 @@
+/* AI Shark Design System - CSS Custom Properties */
+/* Netflix-inspired design tokens for consistent theming */
+
+:root {
+  /* ===== PRIMARY COLORS ===== */
+  --color-primary-50: #FEF2F2;
+  --color-primary-100: #FEE2E2;
+  --color-primary-200: #FECACA;
+  --color-primary-300: #FCA5A5;
+  --color-primary-400: #F87171;
+  --color-primary-500: #E50914; /* Netflix Red */
+  --color-primary-600: #DC2626;
+  --color-primary-700: #B91C1C;
+  --color-primary-800: #991B1B;
+  --color-primary-900: #7F1D1D;
+
+  /* ===== ACCENT COLORS ===== */
+  --color-accent-50: #F0F9FF;
+  --color-accent-100: #E0F2FE;
+  --color-accent-200: #BAE6FD;
+  --color-accent-300: #7DD3FC;
+  --color-accent-400: #38BDF8;
+  --color-accent-500: #06B6D4; /* Wireshark Cyan */
+  --color-accent-600: #0891B2;
+  --color-accent-700: #0E7490;
+  --color-accent-800: #155E75;
+  --color-accent-900: #164E63;
+
+  /* ===== NEUTRAL COLORS ===== */
+  --color-neutral-0: #FFFFFF;
+  --color-neutral-50: #F9FAFB;
+  --color-neutral-100: #F3F4F6;
+  --color-neutral-200: #E5E7EB;
+  --color-neutral-300: #D1D5DB;
+  --color-neutral-400: #9CA3AF;
+  --color-neutral-500: #6B7280;
+  --color-neutral-600: #4B5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1F2937;
+  --color-neutral-900: #111827;
+  --color-neutral-950: #0A0A0A;
+  --color-neutral-1000: #000000;
+
+  /* ===== SEMANTIC COLORS ===== */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+
+  /* ===== PROTOCOL COLORS ===== */
+  --color-protocol-tcp: #06B6D4;
+  --color-protocol-udp: #10B981;
+  --color-protocol-http: #F59E0B;
+  --color-protocol-https: #059669;
+  --color-protocol-dns: #8B5CF6;
+  --color-protocol-icmp: #EF4444;
+  --color-protocol-arp: #F97316;
+  --color-protocol-ssh: #6366F1;
+  --color-protocol-ftp: #EC4899;
+  --color-protocol-smtp: #14B8A6;
+
+  /* ===== STATUS COLORS ===== */
+  --color-status-connected: #10B981;
+  --color-status-connecting: #F59E0B;
+  --color-status-disconnected: #EF4444;
+  --color-status-timeout: #6B7280;
+  --color-status-error: #DC2626;
+
+  /* ===== SPACING ===== */
+  --spacing-0: 0;
+  --spacing-px: 1px;
+  --spacing-0-5: 0.125rem;
+  --spacing-1: 0.25rem;
+  --spacing-1-5: 0.375rem;
+  --spacing-2: 0.5rem;
+  --spacing-2-5: 0.625rem;
+  --spacing-3: 0.75rem;
+  --spacing-3-5: 0.875rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-7: 1.75rem;
+  --spacing-8: 2rem;
+  --spacing-9: 2.25rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+  --spacing-32: 8rem;
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-family-display: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-family-body: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-family-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+  --font-size-6xl: 3.75rem;
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* ===== BORDER RADIUS ===== */
+  --border-radius-sm: 0.125rem;
+  --border-radius-base: 0.25rem;
+  --border-radius-md: 0.375rem;
+  --border-radius-lg: 0.5rem;
+  --border-radius-xl: 0.75rem;
+  --border-radius-2xl: 1rem;
+  --border-radius-3xl: 1.5rem;
+  --border-radius-full: 9999px;
+
+  /* ===== SHADOWS ===== */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* Netflix-specific shadows */
+  --shadow-netflix-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-netflix-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-netflix-modal: 0 25px 50px rgba(0, 0, 0, 0.6);
+
+  /* Glow effects */
+  --shadow-glow-red: 0 0 20px rgba(229, 9, 20, 0.5);
+  --shadow-glow-cyan: 0 0 20px rgba(6, 182, 212, 0.5);
+  --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.5);
+
+  /* ===== TRANSITIONS ===== */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+
+  --transition-ease: ease;
+  --transition-ease-in-out: ease-in-out;
+  --transition-netflix: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition-sharp: cubic-bezier(0.4, 0, 0.6, 1);
+
+  /* ===== Z-INDEX ===== */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal: 1040;
+  --z-index-popover: 1050;
+  --z-index-tooltip: 1060;
+  --z-index-toast: 1070;
+
+  /* ===== BREAKPOINTS ===== */
+  --breakpoint-xs: 475px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Background utilities */
+.bg-netflix-black { background-color: var(--color-neutral-1000); }
+.bg-netflix-red { background-color: var(--color-primary-500); }
+.bg-wireshark-cyan { background-color: var(--color-accent-500); }
+
+/* Text color utilities */
+.text-netflix-white { color: var(--color-neutral-0); }
+.text-netflix-silver { color: var(--color-neutral-400); }
+.text-netflix-red { color: var(--color-primary-500); }
+.text-wireshark-cyan { color: var(--color-accent-500); }
+
+/* Protocol color utilities */
+.text-protocol-tcp { color: var(--color-protocol-tcp); }
+.text-protocol-udp { color: var(--color-protocol-udp); }
+.text-protocol-http { color: var(--color-protocol-http); }
+.text-protocol-https { color: var(--color-protocol-https); }
+.text-protocol-dns { color: var(--color-protocol-dns); }
+
+/* Status color utilities */
+.text-status-connected { color: var(--color-status-connected); }
+.text-status-connecting { color: var(--color-status-connecting); }
+.text-status-disconnected { color: var(--color-status-disconnected); }
+
+/* Shadow utilities */
+.shadow-netflix-card { box-shadow: var(--shadow-netflix-card); }
+.shadow-netflix-elevated { box-shadow: var(--shadow-netflix-elevated); }
+.shadow-glow-red { box-shadow: var(--shadow-glow-red); }
+.shadow-glow-cyan { box-shadow: var(--shadow-glow-cyan); }
+
+/* Border radius utilities */
+.rounded-netflix { border-radius: var(--border-radius-lg); }
+.rounded-netflix-lg { border-radius: var(--border-radius-xl); }
+
+/* Transition utilities */
+.transition-netflix { 
+  transition: all var(--transition-normal) var(--transition-netflix); 
+}
+
+/* Glass morphism effect */
+.glass-netflix {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Netflix gradient */
+.gradient-netflix {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+}
+
+/* Wireshark gradient */
+.gradient-wireshark {
+  background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-700));
+}
