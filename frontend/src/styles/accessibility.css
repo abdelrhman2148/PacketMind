@@ -1,0 +1,892 @@
+/* Accessibility CSS - WCAG 2.1 AA Compliance */
+
+/* ===== SCREEN READER UTILITIES ===== */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sr-only-focusable:focus,
+.sr-only-focusable:active {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: inherit !important;
+  margin: inherit !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: inherit !important;
+}
+
+/* ===== FOCUS MANAGEMENT ===== */
+.focus-visible-only {
+  outline: none;
+}
+
+.focus-visible-only:focus-visible {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Enhanced focus indicators */
+.accessible-focus:focus,
+.accessible-focus:focus-visible {
+  outline: 3px solid #06B6D4;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(6, 182, 212, 0.3);
+  z-index: 1000;
+  position: relative;
+}
+
+/* High contrast focus for Netflix theme */
+.netflix-focus:focus,
+.netflix-focus:focus-visible {
+  outline: 3px solid #E50914;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(229, 9, 20, 0.3);
+}
+
+/* Skip links */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 9999;
+  font-weight: bold;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+@media (prefers-contrast: high) {
+  /* Text contrast enhancements */
+  .netflix-text,
+  .chakra-text {
+    color: #FFFFFF !important;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  }
+  
+  .netflix-silver {
+    color: #E0E0E0 !important;
+  }
+  
+  /* Background contrast enhancements */
+  .netflix-bg,
+  .chakra-ui-dark {
+    background-color: #000000 !important;
+  }
+  
+  /* Border enhancements */
+  .accessible-border {
+    border: 2px solid #FFFFFF !important;
+  }
+  
+  /* Button contrast */
+  .chakra-button,
+  .netflix-button {
+    border: 2px solid currentColor !important;
+    font-weight: bold !important;
+  }
+  
+  /* Card contrast */
+  .netflix-card {
+    background-color: #1A1A1A !important;
+    border: 2px solid #FFFFFF !important;
+  }
+  
+  /* Remove subtle gradients and shadows */
+  .netflix-gradient {
+    background: #000000 !important;
+  }
+  
+  .netflix-shadow {
+    box-shadow: none !important;
+    border: 2px solid #FFFFFF !important;
+  }
+}
+
+/* Forced colors mode (Windows High Contrast) */
+@media (forced-colors: active) {
+  .netflix-card,
+  .packet-card {
+    forced-color-adjust: none;
+    border: 1px solid ButtonText;
+  }
+  
+  .skip-link {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    color: ButtonText;
+    border: 1px solid ButtonText;
+  }
+}
+
+/* ===== REDUCED MOTION PREFERENCES ===== */
+@media (prefers-reduced-motion: reduce) {
+  /* Disable all animations and transitions */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Disable Framer Motion animations */
+  .motion-component {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  /* Replace animations with immediate state changes */
+  .netflix-fade-in {
+    opacity: 1 !important;
+  }
+  
+  .netflix-slide-up {
+    transform: translateY(0) !important;
+  }
+  
+  .netflix-scale {
+    transform: scale(1) !important;
+  }
+  
+  /* Loading animations */
+  .loading-spinner {
+    animation: none !important;
+  }
+  
+  .loading-spinner::after {
+    content: "Loading...";
+    display: block;
+    text-align: center;
+  }
+  
+  /* Disable hover animations */
+  .hover-scale:hover {
+    transform: none !important;
+  }
+  
+  .hover-fade:hover {
+    opacity: 1 !important;
+  }
+  
+  /* Parallax scrolling */
+  .parallax {
+    transform: none !important;
+  }
+}
+
+/* ===== REDUCED TRANSPARENCY ===== */
+@media (prefers-reduced-transparency: reduce) {
+  .netflix-blur {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: #000000 !important;
+  }
+  
+  .netflix-glass {
+    background-color: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: none !important;
+  }
+  
+  .netflix-overlay {
+    background-color: rgba(0, 0, 0, 0.95) !important;
+  }
+}
+
+/* ===== KEYBOARD NAVIGATION ===== */
+.keyboard-navigation {
+  /* Enhanced visibility for keyboard users */
+}
+
+.keyboard-navigation :focus {
+  outline: 3px solid #06B6D4;
+  outline-offset: 2px;
+  z-index: 1000;
+  position: relative;
+}
+
+.keyboard-navigation button:focus,
+.keyboard-navigation input:focus,
+.keyboard-navigation select:focus,
+.keyboard-navigation textarea:focus {
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
+}
+
+/* Table keyboard navigation */
+.accessible-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.accessible-table th,
+.accessible-table td {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  text-align: left;
+}
+
+.accessible-table th {
+  background-color: rgba(31, 31, 31, 0.95);
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.accessible-table th:focus,
+.accessible-table td:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: -2px;
+  background-color: rgba(6, 182, 212, 0.1);
+}
+
+.accessible-table th[aria-sort="ascending"]::after {
+  content: " ↑";
+  color: #06B6D4;
+}
+
+.accessible-table th[aria-sort="descending"]::after {
+  content: " ↓";
+  color: #06B6D4;
+}
+
+/* ===== FORM ACCESSIBILITY ===== */
+.accessible-form {
+  /* Form styling for better accessibility */
+}
+
+.accessible-form label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.accessible-form input,
+.accessible-form select,
+.accessible-form textarea {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  font-size: 16px; /* Prevent zoom on iOS */
+}
+
+.accessible-form input:focus,
+.accessible-form select:focus,
+.accessible-form textarea:focus {
+  border-color: #06B6D4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
+  outline: none;
+}
+
+.accessible-form input[aria-invalid="true"],
+.accessible-form select[aria-invalid="true"],
+.accessible-form textarea[aria-invalid="true"] {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+}
+
+.error-message {
+  color: #FCA5A5;
+  font-size: 14px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.error-message::before {
+  content: "⚠";
+  font-weight: bold;
+}
+
+.required-indicator {
+  color: #EF4444;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+.required-indicator::after {
+  content: "*";
+}
+
+/* ===== DIALOG ACCESSIBILITY ===== */
+.accessible-dialog {
+  background-color: rgba(0, 0, 0, 0.8);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accessible-dialog-content {
+  background-color: #1A1A1A;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.accessible-dialog-content:focus {
+  outline: none;
+}
+
+.dialog-close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.dialog-close-button:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+}
+
+/* ===== TOAST/ALERT ACCESSIBILITY ===== */
+.accessible-toast {
+  background-color: #1A1A1A;
+  border: 2px solid #06B6D4;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px;
+  position: relative;
+}
+
+.accessible-toast.error {
+  border-color: #EF4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.accessible-toast.success {
+  border-color: #10B981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.accessible-toast.warning {
+  border-color: #F59E0B;
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+/* ===== LOADING STATES ===== */
+.accessible-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background-color: rgba(31, 31, 31, 0.95);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loading-text {
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(6, 182, 212, 0.3);
+    border-top: 2px solid #06B6D4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+/* ===== RESPONSIVE ACCESSIBILITY ===== */
+@media (max-width: 768px) {
+  /* Larger touch targets for mobile */
+  .accessible-button,
+  .accessible-link {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Larger text for better readability */
+  .accessible-text {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  /* Increased spacing for mobile */
+  .accessible-spacing {
+    margin: 16px 0;
+  }
+}
+
+/* ===== PRINT ACCESSIBILITY ===== */
+@media print {
+  .skip-link,
+  .screen-reader-only {
+    display: none !important;
+  }
+  
+  .accessible-link {
+    text-decoration: underline;
+  }
+  
+  .accessible-link[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 12px;
+    color: #666;
+  }
+  
+  .netflix-text {
+    color: #000 !important;
+  }
+  
+  .netflix-bg {
+    background: #fff !important;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+.accessible-hidden {
+  display: none !important;
+}
+
+.accessible-visible {
+  visibility: visible !important;
+}
+
+.accessible-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.accessible-clickable:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+}
+
+.accessible-text-large {
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.accessible-text-contrast {
+  color: #FFFFFF;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.accessible-bg-contrast {
+  background-color: #000000;
+  border: 1px solid #FFFFFF;
+}
+
+/* ===== DARK MODE ENHANCEMENTS ===== */
+@media (prefers-color-scheme: dark) {
+  /* Already handled by Netflix theme, but ensure proper contrast */
+  .accessible-text {
+    color: #FFFFFF;
+  }
+  
+  .accessible-text-secondary {
+    color: #D1D5DB;
+  }
+  
+  .accessible-border {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ===== CUSTOM PROPERTIES FOR ACCESSIBILITY ===== */
+:root {
+  --focus-color: #06B6D4;
+  --focus-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
+  --error-color: #EF4444;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --text-contrast: #FFFFFF;
+  --bg-contrast: #000000;
+  --border-contrast: rgba(255, 255, 255, 0.2);
+  
+  /* Motion preferences */
+  --animation-duration: 0.3s;
+  --transition-duration: 0.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animation-duration: 0.01ms;
+    --transition-duration: 0.01ms;
+  }
+}
+
+/* ===== COMPONENT-SPECIFIC ACCESSIBILITY ===== */
+
+/* Netflix Header accessibility */
+.netflix-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.netflix-header nav {
+  display: flex;
+  gap: 16px;
+}
+
+.netflix-header nav a:focus {
+  outline: 2px solid #E50914;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Packet table accessibility */
+.packet-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.packet-table {
+  width: 100%;
+  min-width: 600px;
+}
+
+.packet-row:focus-within {
+  background-color: rgba(6, 182, 212, 0.1);
+  outline: 2px solid #06B6D4;
+  outline-offset: -2px;
+}
+
+/* Chat accessibility */
+.chat-message {
+  border-radius: 8px;
+  margin: 8px 0;
+  padding: 12px 16px;
+}
+
+.chat-message:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+}
+
+.chat-input:focus {
+  border-color: #06B6D4;
+  box-shadow: var(--focus-shadow);
+}
+
+/* Timeline accessibility */
+.timeline-scrubber:focus {
+  outline: 3px solid #06B6D4;
+  outline-offset: 2px;
+}
+
+.timeline-marker[aria-selected="true"] {
+  background-color: #06B6D4;
+  border: 2px solid #FFFFFF;
+}
+
+/* ===== ENHANCED KEYBOARD NAVIGATION ===== */
+
+/* Keyboard navigation active state */
+.keyboard-nav-active {
+  --focus-ring-color: #06B6D4;
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+}
+
+.keyboard-nav-active *:focus {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: 4px;
+}
+
+/* Enhanced skip links */
+.skip-links {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  z-index: 10000;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #000;
+}
+
+.skip-link {
+  padding: 8px 16px;
+  background: #06B6D4;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  position: relative;
+  transform: translateY(100px);
+}
+
+.skip-link:hover,
+.skip-link:focus {
+  background: #0891B2;
+  text-decoration: underline;
+}
+
+/* Focus trap indicators */
+.focus-trap-active {
+  position: relative;
+}
+
+.focus-trap-active::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid var(--focus-ring-color, #06B6D4);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Roving tabindex support */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.roving-tabindex-container [role="tab"],
+.roving-tabindex-container [role="menuitem"],
+.roving-tabindex-container [role="option"],
+.roving-tabindex-container [role="gridcell"] {
+  cursor: pointer;
+}
+
+.roving-tabindex-container [role="tab"]:focus,
+.roving-tabindex-container [role="menuitem"]:focus,
+.roving-tabindex-container [role="option"]:focus,
+.roving-tabindex-container [role="gridcell"]:focus {
+  outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, #06B6D4);
+  outline-offset: var(--focus-ring-offset, 1px);
+}
+
+/* Keyboard shortcuts help */
+.keyboard-shortcuts-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.keyboard-shortcuts-modal {
+  background: #1A1A1A;
+  color: white;
+  border: 2px solid #06B6D4;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.keyboard-shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.keyboard-shortcut {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.keyboard-shortcut-key {
+  font-family: 'Courier New', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Focus management for modal dialogs */
+.modal-focus-trap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  margin: 10vh auto;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: #1A1A1A;
+  border: 2px solid #06B6D4;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* Navigation landmarks */
+[role="navigation"],
+[role="main"],
+[role="complementary"],
+[role="contentinfo"],
+[role="banner"] {
+  position: relative;
+}
+
+/* Focus indicators for navigation */
+[role="navigation"] a:focus,
+[role="navigation"] button:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+  background: rgba(6, 182, 212, 0.1);
+}
+
+/* Enhanced table keyboard navigation */
+.accessible-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.accessible-table th,
+.accessible-table td {
+  position: relative;
+}
+
+.accessible-table th:focus,
+.accessible-table td:focus {
+  outline: 2px solid #06B6D4;
+  outline-offset: -1px;
+  background: rgba(6, 182, 212, 0.1);
+  z-index: 1;
+}
+
+/* Live regions */
+.live-region {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Mobile keyboard navigation improvements */
+@media (max-width: 768px) {
+  .focus-visible {
+    outline-width: 3px;
+  }
+  
+  .sr-only-mobile {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+  
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .skip-links {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .keyboard-shortcuts-modal {
+    margin: 5vh 16px;
+    max-height: 90vh;
+  }
+  
+  .keyboard-shortcuts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Larger touch targets for mobile accessibility */
+  .mobile-touch-target {
+    min-height: 48px;
+    min-width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Enhanced focus for mobile */
+  .mobile-focus:focus {
+    outline: 4px solid #06B6D4;
+    outline-offset: 3px;
+  }
+}

@@ -26,6 +26,8 @@ import {
   optimizeListRendering
 } from '../utils/optimization'
 import { useMobileDetection } from '../hooks/useMobileGestures'
+import { useAccessibility } from '../hooks/useAccessibility'
+import { useFocusManagement } from '../hooks/useFocusManagement'
 import { slideAnimations, scaleAnimations } from '../animations/transitions'
 
 const MotionBox = motion(Box)
@@ -307,6 +309,31 @@ const VirtualizedPacketTable = ({
   const [scrollToIndex, setScrollToIndex] = useState(-1)
   
   const listRef = useRef()
+  const tableRef = useRef()
+  
+  // Accessibility features
+  const {
+    announceToScreenReader,
+    enhanceForScreenReader,
+    keyboardNavigation
+  } = useAccessibility({
+    enableKeyboardTraps: false,
+    enableFocusManagement: true,
+    enableScreenReaderSupport: true
+  })
+  
+  const {
+    focusManagerRef,
+    focusNext,
+    focusPrevious,
+    focusFirst,
+    focusLast
+  } = useFocusManagement({
+    containerRef: tableRef,
+    enableArrowKeys: true,
+    enableEscapeKey: true,
+    roving: true
+  })
 
   // Format timestamp for display
   const formatTimestamp = useCallback((timestamp) => {

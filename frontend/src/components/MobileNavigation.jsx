@@ -19,6 +19,8 @@ import {
 } from '@chakra-ui/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSwipeNavigation, useMobileDetection } from '../hooks/useMobileGestures'
+import { useAccessibility } from '../hooks/useAccessibility'
+import { useFocusManagement } from '../hooks/useFocusManagement'
 import { slideAnimations, buttonAnimations } from '../animations/transitions'
 
 const MotionBox = motion(Box)
@@ -40,6 +42,26 @@ const MobileNavigation = ({
   const [activeSection, setActiveSection] = useState('home')
   const { isMobile, isTablet, orientation } = useMobileDetection()
   const drawerRef = useRef()
+  
+  // Accessibility features
+  const {
+    announceToScreenReader,
+    enhanceForScreenReader
+  } = useAccessibility({
+    enableScreenReaderSupport: true,
+    enableFocusManagement: true
+  })
+  
+  const {
+    focusManagerRef,
+    activate: activateFocusTrap,
+    deactivate: deactivateFocusTrap
+  } = useFocusManagement({
+    trapFocus: isOpen,
+    restoreFocus: true,
+    enableEscapeKey: true,
+    onEscapeKey: onClose
+  })
 
   // Mobile navigation items with icons and actions
   const navigationItems = [
