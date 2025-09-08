@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Box, Heading, Text } from '@chakra-ui/react'
+import { Box, Heading, Text, VStack } from '@chakra-ui/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
-import Sparkline from './components/Sparkline'
 import { ThemeToggle } from './components/ThemeProvider'
 import NetflixHeader from './components/NetflixHeader'
 import NetflixHeroSection from './components/NetflixHeroSection'
@@ -9,7 +9,10 @@ import NetflixPacketCards from './components/NetflixPacketCards'
 import NetflixPacketModal from './components/NetflixPacketModal'
 import PacketDetailsSidebar from './components/PacketDetailsSidebar'
 import NetflixCharts from './components/NetflixCharts'
+import LoadingSpinner, { NetflixLoader } from './components/LoadingSpinner'
 import useRealTimeStats from './hooks/useRealTimeStats'
+
+const MotionBox = motion(Box)
 
 function App() {
   const [packets, setPackets] = useState([])
@@ -545,176 +548,227 @@ function App() {
           >
             {packets.length === 0 ? (
               <Box textAlign="center" py={12}>
-                <Text 
-                  color="netflix.silver" 
-                  fontSize="lg" 
-                  mb={2}
-                  fontWeight="medium"
-                >
-                  {connectionStatus === 'connected' 
-                    ? 'Monitoring network traffic...' 
-                    : 'Establishing connection to packet stream'
-                  }
-                </Text>
-                <Text color="rgba(179, 179, 179, 0.7)" fontSize="sm">
-                  {connectionStatus === 'connected' 
-                    ? 'Packets will appear here in real-time' 
-                    : 'Please check your connection status'
-                  }
-                </Text>
+                {connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? (
+                  <NetflixLoader
+                    variant="netflix"
+                    size="md"
+                    message="Connecting to packet stream..."
+                    showMessage={true}
+                  />
+                ) : (
+                  <>
+                    <Text 
+                      color="netflix.silver" 
+                      fontSize="lg" 
+                      mb={2}
+                      fontWeight="medium"
+                    >
+                      {connectionStatus === 'connected' 
+                        ? 'Monitoring network traffic...' 
+                        : 'Establishing connection to packet stream'
+                      }
+                    </Text>
+                    <Text color="rgba(179, 179, 179, 0.7)" fontSize="sm">
+                      {connectionStatus === 'connected' 
+                        ? 'Packets will appear here in real-time' 
+                        : 'Please check your connection status'
+                      }
+                    </Text>
+                  </>
+                )}
               </Box>
             ) : (
               <Box>
-                {packets.slice(0, 10).map((packet, index) => (
-                  <Box 
-                    key={index}
-                    p={4}
-                    mb={3}
-                    bg={selectedPacket === packet 
-                      ? 'rgba(6, 182, 212, 0.1)' 
-                      : 'rgba(255, 255, 255, 0.05)'
-                    }
-                    borderRadius="12px"
-                    cursor="pointer"
-                    onClick={() => handlePacketSelect(packet)}
-                    onDoubleClick={() => handlePacketSelectSidebar(packet)}
-                    border="1px solid"
-                    borderColor={selectedPacket === packet 
-                      ? 'rgba(6, 182, 212, 0.5)' 
-                      : 'rgba(255, 255, 255, 0.1)'
-                    }
-                    transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-                    _hover={{ 
-                      bg: selectedPacket === packet 
-                        ? 'rgba(6, 182, 212, 0.15)' 
-                        : 'rgba(255, 255, 255, 0.08)',
-                      borderColor: 'rgba(6, 182, 212, 0.3)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
-                    }}
-                    title="Click to open modal, double-click for sidebar"
-                  >
-                    <Text 
-                      fontSize="sm" 
-                      fontWeight="600"
-                      color="netflix.white"
-                      mb={2}
+                <AnimatePresence>
+                  {packets.slice(0, 10).map((packet, index) => (
+                    <MotionBox 
+                      key={`${packet.ts}-${index}`}
+                      p={4}
+                      mb={3}
+                      bg={selectedPacket === packet 
+                        ? 'rgba(6, 182, 212, 0.1)' 
+                        : 'rgba(255, 255, 255, 0.05)'
+                      }
+                      borderRadius="12px"
+                      cursor="pointer"
+                      onClick={() => handlePacketSelect(packet)}
+                      onDoubleClick={() => handlePacketSelectSidebar(packet)}
+                      border="1px solid"
+                      borderColor={selectedPacket === packet 
+                        ? 'rgba(6, 182, 212, 0.5)' 
+                        : 'rgba(255, 255, 255, 0.1)'
+                      }
+                      title="Click to open modal, double-click for sidebar"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{
+                        duration: 0.3,
+                        delay: index * 0.05
+                      }}
+                      whileHover={{
+                        backgroundColor: selectedPacket === packet 
+                          ? 'rgba(6, 182, 212, 0.15)' 
+                          : 'rgba(255, 255, 255, 0.08)',
+                        borderColor: 'rgba(6, 182, 212, 0.3)',
+                        y: -2,
+                        boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
+                      }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      {packet.src} → {packet.dst} ({packet.proto})
-                    </Text>
-                    <Text 
-                      fontSize="xs" 
-                      color="netflix.silver"
-                      opacity={0.8}
-                    >
-                      {formatTimestamp(packet.ts)} | Length: {packet.length} bytes
-                    </Text>
-                  </Box>
-                ))}
+                      <Text 
+                        fontSize="sm" 
+                        fontWeight="600"
+                        color="netflix.white"
+                        mb={2}
+                      >
+                        {packet.src} → {packet.dst} ({packet.proto})
+                      </Text>
+                      <Text 
+                        fontSize="xs" 
+                        color="netflix.silver"
+                        opacity={0.8}
+                      >
+                        {formatTimestamp(packet.ts)} | Length: {packet.length} bytes
+                      </Text>
+                    </MotionBox>
+                  ))}
+                </AnimatePresence>
               </Box>
             )}
           </Box>
         </Box>
 
         {/* Selected Packet Details */}
-        {selectedPacket && (
-          <Box>
-            <Heading 
-              size="lg" 
-              mb={6} 
-              color="netflix.white"
-              fontWeight="bold"
-              letterSpacing="-0.025em"
+        <AnimatePresence>
+          {selectedPacket && (
+            <MotionBox
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
             >
-              Packet Analysis
-            </Heading>
-            <Box 
-              bg="rgba(31, 31, 31, 0.95)"
-              borderRadius="16px"
-              border="1px solid"
-              borderColor="rgba(255, 255, 255, 0.1)"
-              p={6}
-              boxShadow="netflix"
-              backdropFilter="blur(20px)"
-            >
-              <Text 
-                mb={4}
+              <Heading 
+                size="lg" 
+                mb={6} 
                 color="netflix.white"
-                fontSize="md"
-                fontWeight="medium"
+                fontWeight="bold"
+                letterSpacing="-0.025em"
               >
-                <Text as="span" color="wireshark.accent" fontWeight="bold">
-                  Summary:
-                </Text>{' '}
-                {selectedPacket.summary}
-              </Text>
-              
-              <Box
-                as="button"
-                onClick={handleExplainPacket}
-                disabled={aiLoading}
-                px={6}
-                py={3}
-                borderRadius="8px"
-                bg={aiLoading 
-                  ? 'rgba(229, 9, 20, 0.5)' 
-                  : 'linear-gradient(135deg, #E50914 0%, #DC143C 50%, #B20710 100%)'
-                }
-                color="netflix.white"
-                fontWeight="semibold"
-                cursor={aiLoading ? 'not-allowed' : 'pointer'}
-                opacity={aiLoading ? 0.6 : 1}
-                transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-                border="none"
-                boxShadow="0 4px 15px rgba(229, 9, 20, 0.3)"
-                _hover={!aiLoading ? {
-                  transform: 'translateY(-2px) scale(1.02)',
-                  boxShadow: '0 8px 25px rgba(229, 9, 20, 0.5)'
-                } : {}}
-                _active={!aiLoading ? {
-                  transform: 'translateY(0) scale(1)'
-                } : {}}
+                Packet Analysis
+              </Heading>
+              <Box 
+                bg="rgba(31, 31, 31, 0.95)"
+                borderRadius="16px"
+                border="1px solid"
+                borderColor="rgba(255, 255, 255, 0.1)"
+                p={6}
+                boxShadow="netflix"
+                backdropFilter="blur(20px)"
               >
-                {aiLoading ? 'Analyzing with AI...' : 'Explain with AI'}
-              </Box>
-              
-              {aiResponse && (
-                <Box 
-                  mt={6}
-                  p={4}
-                  bg={aiResponse.error 
-                    ? 'rgba(239, 68, 68, 0.1)' 
-                    : 'rgba(16, 185, 129, 0.1)'
-                  }
-                  borderRadius="12px"
-                  border="1px solid"
-                  borderColor={aiResponse.error 
-                    ? 'rgba(239, 68, 68, 0.3)' 
-                    : 'rgba(16, 185, 129, 0.3)'
-                  }
-                  backdropFilter="blur(10px)"
+                <Text 
+                  mb={4}
+                  color="netflix.white"
+                  fontSize="md"
+                  fontWeight="medium"
                 >
-                  <Text 
-                    fontWeight="600" 
-                    mb={3} 
-                    color={aiResponse.error ? '#FCA5A5' : '#6EE7B7'}
-                    fontSize="md"
-                  >
-                    AI Analysis {aiResponse.is_mock && '(Demo Mode)'} {aiResponse.error && '- Analysis Failed'}
-                  </Text>
-                  <Text 
-                    fontSize="sm" 
-                    whiteSpace="pre-wrap"
-                    color="netflix.white"
-                    lineHeight="1.6"
-                  >
-                    {aiResponse.explanation}
-                  </Text>
-                </Box>
-              )}
-            </Box>
-          </Box>
-        )}
+                  <Text as="span" color="wireshark.accent" fontWeight="bold">
+                    Summary:
+                  </Text>{' '}
+                  {selectedPacket.summary}
+                </Text>
+                
+                <MotionBox
+                  as="button"
+                  onClick={handleExplainPacket}
+                  disabled={aiLoading}
+                  px={6}
+                  py={3}
+                  borderRadius="8px"
+                  bg={aiLoading 
+                    ? 'rgba(229, 9, 20, 0.5)' 
+                    : 'linear-gradient(135deg, #E50914 0%, #DC143C 50%, #B20710 100%)'
+                  }
+                  color="netflix.white"
+                  fontWeight="semibold"
+                  cursor={aiLoading ? 'not-allowed' : 'pointer'}
+                  opacity={aiLoading ? 0.6 : 1}
+                  border="none"
+                  boxShadow="0 4px 15px rgba(229, 9, 20, 0.3)"
+                  whileHover={!aiLoading ? {
+                    y: -2,
+                    scale: 1.02,
+                    boxShadow: '0 8px 25px rgba(229, 9, 20, 0.5)'
+                  } : {}}
+                  whileTap={!aiLoading ? {
+                    y: 0,
+                    scale: 1
+                  } : {}}
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 25
+                  }}
+                >
+                  {aiLoading ? (
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <NetflixLoader 
+                        variant="minimal" 
+                        size="xs" 
+                        showMessage={false} 
+                        isVisible={true}
+                      />
+                      <Text>Analyzing with AI...</Text>
+                    </Box>
+                  ) : (
+                    'Explain with AI'
+                  )}
+                </MotionBox>
+                
+                <AnimatePresence>
+                  {aiResponse && (
+                    <MotionBox 
+                      mt={6}
+                      p={4}
+                      bg={aiResponse.error 
+                        ? 'rgba(239, 68, 68, 0.1)' 
+                        : 'rgba(16, 185, 129, 0.1)'
+                      }
+                      borderRadius="12px"
+                      border="1px solid"
+                      borderColor={aiResponse.error 
+                        ? 'rgba(239, 68, 68, 0.3)' 
+                        : 'rgba(16, 185, 129, 0.3)'
+                      }
+                      backdropFilter="blur(10px)"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Text 
+                        fontWeight="600" 
+                        mb={3} 
+                        color={aiResponse.error ? '#FCA5A5' : '#6EE7B7'}
+                        fontSize="md"
+                      >
+                        AI Analysis {aiResponse.is_mock && '(Demo Mode)'} {aiResponse.error && '- Analysis Failed'}
+                      </Text>
+                      <Text 
+                        fontSize="sm" 
+                        whiteSpace="pre-wrap"
+                        color="netflix.white"
+                        lineHeight="1.6"
+                      >
+                        {aiResponse.explanation}
+                      </Text>
+                    </MotionBox>
+                  )}
+                </AnimatePresence>
+              </Box>
+            </MotionBox>
+          )}
+        </AnimatePresence>
         
         {/* Netflix-Style Packet Modal */}
         <NetflixPacketModal
