@@ -13,8 +13,12 @@ import LoadingSpinner, { NetflixLoader } from './components/LoadingSpinner'
 import NetflixSearchBar from './components/NetflixSearchBar'
 import AdvancedFilterPanel from './components/AdvancedFilterPanel'
 import FilterTags from './components/FilterTags'
+import MobileNavigation from './components/MobileNavigation'
+import MobilePacketList from './components/MobilePacketList'
 import useRealTimeStats from './hooks/useRealTimeStats'
 import { useSearch } from './hooks/useSearch'
+import { useMobileDetection } from './hooks/useMobileGestures'
+import './styles/mobile.css'
 
 const MotionBox = motion(Box)
 
@@ -44,6 +48,9 @@ function App() {
 
   // Initialize real-time stats hook
   const realTimeStats = useRealTimeStats(packets, connectionStatus)
+
+  // Mobile detection
+  const { isMobile, isTablet } = useMobileDetection()
 
   // Initialize search and filter functionality
   const {
@@ -507,29 +514,153 @@ function App() {
   }
 
   return (
-    <Box minH="100vh" bg="netflix.black" color="netflix.white">
-      {/* Netflix-Style Header */}
-      <NetflixHeader
-        connectionStatus={connectionStatus}
-        currentInterface={currentSettings.iface || selectedInterface}
-        packetCount={packets.length}
-        onNavigation={handleNavigation}
-        onSettings={handleSettings}
-        onAbout={handleAbout}
-      />
+    <Box minH="100vh" bg="netflix.black" color="netflix.white" className="safe-area-all">
+      {/* Mobile Navigation Wrapper */}
+      {isMobile ? (
+        <MobileNavigation
+          connectionStatus={connectionStatus}
+          packetCount={packets.length}
+          currentInterface={currentSettings.iface || selectedInterface}
+          isCapturing={realTimeStats.isCapturing}
+          onNavigation={handleNavigation}
+          onSettings={handleSettings}
+          onAbout={handleAbout}
+          onStartCapture={handleStartCapture}
+          onStopCapture={handleStopCapture}
+        >
+          {/* Mobile Content */}
+          <MobileAppContent />
+        </MobileNavigation>
+      ) : (
+        /* Desktop Content */
+        <DesktopAppContent />
+      )}
+    </Box>
+  )
 
-      {/* Theme Toggle - Floating */}
-      <Box
-        position="fixed"
-        top={4}
-        right={4}
-        zIndex={1001}
-      >
-        <ThemeToggle size="sm" iconOnly />
+  // Mobile app content component
+  function MobileAppContent() {
+    return (
+      <Box className="mobile-scroll">
+        {/* Mobile Hero Section */}
+        <Box px={4} pt={6} pb={4}>
+          <NetflixHeroSection
+            connectionStatus={connectionStatus}
+            packetCount={packets.length}
+            packetRate={realTimeStats.currentRate}
+            currentInterface={currentSettings.iface || selectedInterface}
+            isCapturing={realTimeStats.isCapturing}
+            onStartCapture={handleStartCapture}
+            onStopCapture={handleStopCapture}
+            onOpenSettings={handleSettings}
+            onOpenAnalytics={handleOpenAnalytics}
+            trafficHistory={realTimeStats.trafficHistory}
+            alerts={alerts}
+            isMobile={true}
+          />
+        </Box>
+
+        {/* Mobile Search and Filter System */}
+        <Box px={4} pb={4}>
+          <VStack align="stretch" spacing={4}>
+            {/* Compact Search Bar */}
+            <NetflixSearchBar
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onSearch={executeSearch}
+              onClear={clearSearch}
+              suggestions={suggestions}
+              showSuggestions={showSuggestions}
+              onSuggestionSelect={(suggestion) => {
+                handleSearchChange(suggestion)
+                executeSearch(suggestion)
+              }}
+              searchHistory={searchHistory}
+              isSearching={isSearching}
+              placeholder="Search packets..."
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              isMobile={true}
+            />
+
+            {/* Filter Tags - Horizontal scroll on mobile */}
+            {activeFilterCount > 0 && (
+              <Box className="mobile-horizontal-scroll">
+                <FilterTags
+                  activeFilters={activeFilters}
+                  onRemoveFilter={removeFilter}
+                  onClearAll={clearAllFilters}
+                  getQuickFilters={getQuickFilters}
+                  onQuickFilter={addFilter}
+                  isMobile={true}
+                />
+              </Box>
+            )}
+
+            {/* Collapsible Advanced Filter Panel */}
+            <AdvancedFilterPanel
+              activeFilters={activeFilters}
+              onAddFilter={addFilter}
+              onRemoveFilter={removeFilter}
+              onClearAll={clearAllFilters}
+              savedFilters={savedFilters}
+              onSaveFilters={saveFilterSet}
+              onLoadFilters={loadFilterSet}
+              onDeleteFilters={deleteFilterSet}
+              getQuickFilters={getQuickFilters}
+              packets={packets}
+              isMobile={true}
+              defaultCollapsed={true}
+            />
+          </VStack>
+        </Box>
+
+        {/* Mobile Packet List */}
+        <Box h="calc(100vh - 400px)" minH="400px">
+          <MobilePacketList
+            packets={filteredPackets}
+            isCapturing={realTimeStats.isCapturing}
+            searchQuery={searchQuery}
+            activeFilters={activeFilters}
+            onPacketSelect={handlePacketSelect}
+            onPacketFilter={handlePacketFilter}
+            onPacketExport={handlePacketExport}
+            onRefresh={async () => {
+              // Refresh functionality - could reload data or clear cache
+              console.log('Mobile refresh triggered')
+            }}
+          />
+        </Box>
       </Box>
+    )
+  }
 
-      {/* Main Content Area with Netflix Styling */}
-      <Box pt={4} px={{ base: 4, md: 8 }}>
+  // Desktop app content component  
+  function DesktopAppContent() {
+    return (
+      <>
+        {/* Netflix-Style Header */}
+        <NetflixHeader
+          connectionStatus={connectionStatus}
+          currentInterface={currentSettings.iface || selectedInterface}
+          packetCount={packets.length}
+          onNavigation={handleNavigation}
+          onSettings={handleSettings}
+          onAbout={handleAbout}
+        />
+
+        {/* Theme Toggle - Floating */}
+        <Box
+          position="fixed"
+          top={4}
+          right={4}
+          zIndex={1001}
+        >
+          <ThemeToggle size="sm" iconOnly />
+        </Box>
+
+        {/* Main Content Area with Netflix Styling */}
+        <Box pt={4} px={{ base: 4, md: 8 }}>
         {/* Netflix-Style Hero Section */}
         <NetflixHeroSection
           connectionStatus={connectionStatus}
@@ -928,9 +1059,11 @@ function App() {
             )
           ).slice(0, 5)}
         />
-      </Box>
-    </Box>
-  )
+        </Box>
+      </>
+    )
+  }
+
 }
 
 export default App

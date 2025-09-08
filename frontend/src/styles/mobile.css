@@ -1,0 +1,652 @@
+/* Mobile-First Responsive CSS for AI Shark */
+
+/* ==================== */
+/* BASE MOBILE STYLES   */
+/* ==================== */
+
+/* Global mobile optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection for specific elements */
+.selectable-text,
+.selectable-text * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Root viewport settings */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* ==================== */
+/* MOBILE BREAKPOINTS   */
+/* ==================== */
+
+/* Extra small devices (phones, 0px and up) */
+@media (max-width: 479px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .mobile-xs-hide {
+    display: none !important;
+  }
+  
+  .mobile-xs-show {
+    display: block !important;
+  }
+  
+  /* Tighter spacing for very small screens */
+  .responsive-padding {
+    padding: 0.5rem !important;
+  }
+  
+  .responsive-margin {
+    margin: 0.25rem !important;
+  }
+}
+
+/* Small devices (large phones, 480px and up) */
+@media (min-width: 480px) and (max-width: 767px) {
+  .mobile-sm-hide {
+    display: none !important;
+  }
+  
+  .mobile-sm-show {
+    display: block !important;
+  }
+  
+  .responsive-padding {
+    padding: 0.75rem !important;
+  }
+  
+  .responsive-margin {
+    margin: 0.5rem !important;
+  }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tablet-hide {
+    display: none !important;
+  }
+  
+  .tablet-show {
+    display: block !important;
+  }
+  
+  .responsive-padding {
+    padding: 1rem !important;
+  }
+  
+  .responsive-margin {
+    margin: 0.75rem !important;
+  }
+}
+
+/* Large devices (desktops, 1024px and up) */
+@media (min-width: 1024px) {
+  .desktop-hide {
+    display: none !important;
+  }
+  
+  .desktop-show {
+    display: block !important;
+  }
+  
+  .responsive-padding {
+    padding: 1.5rem !important;
+  }
+  
+  .responsive-margin {
+    margin: 1rem !important;
+  }
+}
+
+/* ==================== */
+/* TOUCH INTERACTIONS   */
+/* ==================== */
+
+/* Touch-friendly button sizing */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  position: relative;
+}
+
+/* Enhanced touch feedback */
+.touch-feedback {
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.touch-feedback::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.touch-feedback:active::before {
+  width: 200px;
+  height: 200px;
+}
+
+/* Swipe indicators */
+.swipe-indicator {
+  position: relative;
+}
+
+.swipe-indicator::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
+  animation: swipe-hint 3s ease-in-out infinite;
+}
+
+@keyframes swipe-hint {
+  0%, 100% { opacity: 0; transform: translateY(-50%) translateX(0); }
+  50% { opacity: 1; transform: translateY(-50%) translateX(-5px); }
+}
+
+/* ==================== */
+/* RESPONSIVE TYPOGRAPHY */
+/* ==================== */
+
+/* Fluid typography scaling */
+.responsive-text-xs {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.responsive-text-sm {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.responsive-text-base {
+  font-size: clamp(1rem, 3vw, 1.125rem);
+}
+
+.responsive-text-lg {
+  font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+}
+
+.responsive-text-xl {
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+}
+
+.responsive-text-2xl {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+.responsive-text-3xl {
+  font-size: clamp(2rem, 6vw, 2.5rem);
+}
+
+/* Line height adjustments for mobile reading */
+@media (max-width: 767px) {
+  .responsive-text-base,
+  .responsive-text-lg {
+    line-height: 1.6;
+  }
+}
+
+/* ==================== */
+/* MOBILE LAYOUTS       */
+/* ==================== */
+
+/* Flexible grid system */
+.mobile-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 480px) {
+  .mobile-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Responsive flex containers */
+.mobile-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .mobile-flex-row {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
+
+/* Full width mobile containers */
+.mobile-full-width {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+}
+
+/* Safe area handling for notched devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-area-all {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ==================== */
+/* COMPONENT OVERRIDES  */
+/* ==================== */
+
+/* Mobile-optimized modals */
+@media (max-width: 767px) {
+  .chakra-modal__content {
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90vh;
+    animation: slideUpModal 0.3s ease-out;
+  }
+  
+  @keyframes slideUpModal {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  .chakra-modal__header {
+    padding: 1.5rem 1rem 1rem;
+    position: relative;
+  }
+  
+  .chakra-modal__header::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+  }
+  
+  .chakra-modal__body {
+    padding: 0 1rem 1rem;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+  }
+  
+  .chakra-modal__footer {
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+  
+  .chakra-modal__footer .chakra-button {
+    flex: 1;
+    min-height: 48px;
+  }
+}
+
+/* Mobile-optimized drawers */
+@media (max-width: 767px) {
+  .chakra-drawer__content {
+    max-width: 85vw;
+  }
+}
+
+/* Mobile-optimized tables */
+@media (max-width: 767px) {
+  .mobile-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .mobile-table-responsive {
+    display: block;
+  }
+  
+  .mobile-table-responsive tbody,
+  .mobile-table-responsive tr,
+  .mobile-table-responsive td {
+    display: block;
+  }
+  
+  .mobile-table-responsive thead {
+    display: none;
+  }
+  
+  .mobile-table-responsive tr {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+  }
+  
+  .mobile-table-responsive td {
+    border: none;
+    padding: 0.5rem 0;
+    position: relative;
+    padding-left: 30%;
+  }
+  
+  .mobile-table-responsive td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 25%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+/* ==================== */
+/* MOBILE SCROLLING     */
+/* ==================== */
+
+/* Smooth scrolling for mobile */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbars for mobile */
+.mobile-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.mobile-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.mobile-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.mobile-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Horizontal scroll containers */
+.mobile-horizontal-scroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-horizontal-scroll > * {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+/* ==================== */
+/* MOBILE ANIMATIONS    */
+/* ==================== */
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mobile-optimized animations */
+.mobile-fade-in {
+  animation: mobileFadeIn 0.3s ease-out;
+}
+
+@keyframes mobileFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-slide-up {
+  animation: mobileSlideUp 0.3s ease-out;
+}
+
+@keyframes mobileSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mobile-scale-in {
+  animation: mobileScaleIn 0.2s ease-out;
+}
+
+@keyframes mobileScaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ==================== */
+/* MOBILE PERFORMANCE   */
+/* ==================== */
+
+/* GPU acceleration for smooth animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}
+
+/* Optimize rendering for mobile */
+.mobile-optimized {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* Lazy loading placeholders */
+.lazy-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: lazyShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes lazyShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ==================== */
+/* ACCESSIBILITY        */
+/* ==================== */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .responsive-text,
+  .mobile-text {
+    color: #ffffff;
+    background: #000000;
+  }
+  
+  .mobile-border {
+    border-color: #ffffff;
+  }
+}
+
+/* Focus indicators for keyboard navigation */
+.mobile-focusable:focus-visible {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Screen reader optimizations */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ==================== */
+/* UTILITY CLASSES      */
+/* ==================== */
+
+/* Mobile spacing utilities */
+.m-mobile-0 { margin: 0 !important; }
+.m-mobile-1 { margin: 0.25rem !important; }
+.m-mobile-2 { margin: 0.5rem !important; }
+.m-mobile-3 { margin: 0.75rem !important; }
+.m-mobile-4 { margin: 1rem !important; }
+
+.p-mobile-0 { padding: 0 !important; }
+.p-mobile-1 { padding: 0.25rem !important; }
+.p-mobile-2 { padding: 0.5rem !important; }
+.p-mobile-3 { padding: 0.75rem !important; }
+.p-mobile-4 { padding: 1rem !important; }
+
+/* Mobile display utilities */
+.mobile-block { display: block !important; }
+.mobile-inline { display: inline !important; }
+.mobile-inline-block { display: inline-block !important; }
+.mobile-flex { display: flex !important; }
+.mobile-grid { display: grid !important; }
+.mobile-hidden { display: none !important; }
+
+/* Mobile positioning utilities */
+.mobile-relative { position: relative !important; }
+.mobile-absolute { position: absolute !important; }
+.mobile-fixed { position: fixed !important; }
+.mobile-sticky { position: sticky !important; }
+
+/* Mobile overflow utilities */
+.mobile-overflow-hidden { overflow: hidden !important; }
+.mobile-overflow-auto { overflow: auto !important; }
+.mobile-overflow-scroll { overflow: scroll !important; }
+.mobile-overflow-x-auto { overflow-x: auto !important; }
+.mobile-overflow-y-auto { overflow-y: auto !important; }
