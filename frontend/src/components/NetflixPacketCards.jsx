@@ -6,7 +6,12 @@ import usePacketCategories from '../hooks/usePacketCategories'
 
 const MotionBox = motion(Box)
 
-const NetflixPacketCards = ({ packets = [], isCapturing = false }) => {
+const NetflixPacketCards = ({ 
+  packets = [], 
+  isCapturing = false, 
+  searchQuery = '',
+  activeFilters = {}
+}) => {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
   const scrollContainerRef = useRef(null)
@@ -189,6 +194,19 @@ const NetflixPacketCards = ({ packets = [], isCapturing = false }) => {
             </Heading>
             <Text color="netflix.silver" fontSize="lg">
               Real-time packet analysis by protocol type
+              {searchQuery && (
+                <Text as="span" color="wireshark.accent" ml={2}>
+                  • Searching: "{searchQuery}"
+                </Text>
+              )}
+              {Object.values(activeFilters).some(f => Array.isArray(f) ? f.length > 0 : f) && (
+                <Text as="span" color="wireshark.accent" ml={2}>
+                  • {Object.values(activeFilters).reduce((count, filter) => {
+                    if (Array.isArray(filter)) return count + filter.length
+                    return filter ? count + 1 : count
+                  }, 0)} active filters
+                </Text>
+              )}
             </Text>
           </VStack>
 

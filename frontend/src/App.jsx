@@ -10,7 +10,11 @@ import NetflixPacketModal from './components/NetflixPacketModal'
 import PacketDetailsSidebar from './components/PacketDetailsSidebar'
 import NetflixCharts from './components/NetflixCharts'
 import LoadingSpinner, { NetflixLoader } from './components/LoadingSpinner'
+import NetflixSearchBar from './components/NetflixSearchBar'
+import AdvancedFilterPanel from './components/AdvancedFilterPanel'
+import FilterTags from './components/FilterTags'
 import useRealTimeStats from './hooks/useRealTimeStats'
+import { useSearch } from './hooks/useSearch'
 
 const MotionBox = motion(Box)
 
@@ -40,6 +44,36 @@ function App() {
 
   // Initialize real-time stats hook
   const realTimeStats = useRealTimeStats(packets, connectionStatus)
+
+  // Initialize search and filter functionality
+  const {
+    searchQuery,
+    isSearching,
+    searchResults,
+    searchHistory,
+    suggestions,
+    showSuggestions,
+    activeFilters,
+    savedFilters,
+    activeFilterCount,
+    handleSearchChange,
+    executeSearch,
+    clearSearch,
+    setShowSuggestions,
+    addFilter,
+    removeFilter,
+    clearAllFilters,
+    saveFilterSet,
+    loadFilterSet,
+    deleteFilterSet,
+    getQuickFilters
+  } = useSearch(packets, {
+    debounceDelay: 300,
+    maxSuggestions: 10,
+    maxHistory: 20,
+    enableHistory: true,
+    enableSuggestions: true
+  })
 
   // WebSocket connection management with automatic reconnection
   const connectWebSocket = () => {
@@ -289,21 +323,38 @@ function App() {
   const handlePacketFilter = (packet) => {
     if (!packet) return
     
-    // Create BPF filter based on packet
-    let filter = ''
+    // Add to search filters
+    if (packet.proto) {
+      addFilter('protocol', packet.proto)
+    }
+    if (packet.src) {
+      addFilter('source', packet.src)
+    }
+    if (packet.dst) {
+      addFilter('destination', packet.dst)
+    }
+    if (packet.sport) {
+      addFilter('port', packet.sport)
+    }
+    if (packet.dport) {
+      addFilter('port', packet.dport)
+    }
+    
+    // Also create BPF filter for backend
+    let bpfFilter = ''
     if (packet.src && packet.dst) {
-      filter = `host ${packet.src} or host ${packet.dst}`
+      bpfFilter = `host ${packet.src} or host ${packet.dst}`
     }
     if (packet.proto) {
-      filter = filter ? `${filter} and ${packet.proto.toLowerCase()}` : packet.proto.toLowerCase()
+      bpfFilter = bpfFilter ? `${bpfFilter} and ${packet.proto.toLowerCase()}` : packet.proto.toLowerCase()
     }
     if (packet.sport || packet.dport) {
       const port = packet.sport || packet.dport
-      filter = filter ? `${filter} and port ${port}` : `port ${port}`
+      bpfFilter = bpfFilter ? `${bpfFilter} and port ${port}` : `port ${port}`
     }
     
-    setBpfFilter(filter)
-    console.log('Created filter:', filter)
+    setBpfFilter(bpfFilter)
+    console.log('Created filters:', { searchFilters: activeFilters, bpfFilter })
   }
 
   // Handle packet export
@@ -394,18 +445,26 @@ function App() {
     setAlertFilter(null)
   }
 
-  // Filter packets based on alert filter
+  // Filter packets based on alert filter and search results
   useEffect(() => {
+    let basePackets = packets
+    
+    // Apply search/filter results if active
+    if (searchQuery || activeFilterCount > 0) {
+      basePackets = searchResults
+    }
+    
+    // Apply alert filter on top of search results
     if (alertFilter) {
-      const filtered = packets.filter(packet => {
+      const filtered = basePackets.filter(packet => {
         const packetTime = packet.ts * 1000
         return packetTime >= alertFilter.start && packetTime <= alertFilter.end
       })
       setFilteredPackets(filtered)
     } else {
-      setFilteredPackets(packets)
+      setFilteredPackets(basePackets)
     }
-  }, [packets, alertFilter])
+  }, [packets, alertFilter, searchResults, searchQuery, activeFilterCount])
 
   // Handle navigation clicks from Netflix header
   const handleNavigation = (navId) => {
@@ -486,18 +545,69 @@ function App() {
           alerts={alerts}
         />
 
+        {/* Netflix-Style Search and Filter System */}
+        <Box mb={8}>
+          <VStack align="stretch" spacing={6}>
+            {/* Search Bar */}
+            <NetflixSearchBar
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onSearch={executeSearch}
+              onClear={clearSearch}
+              suggestions={suggestions}
+              showSuggestions={showSuggestions}
+              onSuggestionSelect={(suggestion) => {
+                handleSearchChange(suggestion)
+                executeSearch(suggestion)
+              }}
+              searchHistory={searchHistory}
+              isSearching={isSearching}
+              placeholder="Search packets by IP, protocol, port, or content..."
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+
+            {/* Filter Tags - Show active filters */}
+            {activeFilterCount > 0 && (
+              <FilterTags
+                activeFilters={activeFilters}
+                onRemoveFilter={removeFilter}
+                onClearAll={clearAllFilters}
+                getQuickFilters={getQuickFilters}
+                onQuickFilter={addFilter}
+              />
+            )}
+
+            {/* Advanced Filter Panel */}
+            <AdvancedFilterPanel
+              activeFilters={activeFilters}
+              onAddFilter={addFilter}
+              onRemoveFilter={removeFilter}
+              onClearAll={clearAllFilters}
+              savedFilters={savedFilters}
+              onSaveFilters={saveFilterSet}
+              onLoadFilters={loadFilterSet}
+              onDeleteFilters={deleteFilterSet}
+              getQuickFilters={getQuickFilters}
+              packets={packets}
+            />
+          </VStack>
+        </Box>
+
         {/* Netflix-Style Packet Cards */}
         <Box mb={8}>
           <NetflixPacketCards
-            packets={packets}
+            packets={filteredPackets}
             isCapturing={realTimeStats.isCapturing}
+            searchQuery={searchQuery}
+            activeFilters={activeFilters}
           />
         </Box>
 
         {/* Netflix-Style Analytics Dashboard */}
         <Box mb={8}>
           <NetflixCharts
-            packets={packets}
+            packets={filteredPackets}
             isCapturing={realTimeStats.isCapturing}
             timeRange="5m"
             autoRefresh={true}
@@ -513,10 +623,19 @@ function App() {
               fontWeight="bold"
               letterSpacing="-0.025em"
             >
-              Live Network Traffic
+              {searchQuery || activeFilterCount > 0 ? (
+                <>Filtered Network Traffic ({filteredPackets.length} packets)</>
+              ) : (
+                <>Live Network Traffic</>
+              )}
             </Heading>
             <Text color="netflix.silver" fontSize="sm">
               💡 Click a packet to open detailed modal, double-click for sidebar view
+              {(searchQuery || activeFilterCount > 0) && (
+                <Text as="span" color="wireshark.accent" ml={2}>
+                  • {filteredPackets.length} of {packets.length} packets shown
+                </Text>
+              )}
             </Text>
           </VStack>
           <Box 
@@ -546,7 +665,7 @@ function App() {
               },
             }}
           >
-            {packets.length === 0 ? (
+            {filteredPackets.length === 0 ? (
               <Box textAlign="center" py={12}>
                 {connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? (
                   <NetflixLoader
@@ -564,13 +683,13 @@ function App() {
                       fontWeight="medium"
                     >
                       {connectionStatus === 'connected' 
-                        ? 'Monitoring network traffic...' 
+                        ? (searchQuery || activeFilterCount > 0 ? 'No packets match your search criteria' : 'Monitoring network traffic...') 
                         : 'Establishing connection to packet stream'
                       }
                     </Text>
                     <Text color="rgba(179, 179, 179, 0.7)" fontSize="sm">
                       {connectionStatus === 'connected' 
-                        ? 'Packets will appear here in real-time' 
+                        ? (searchQuery || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'Packets will appear here in real-time') 
                         : 'Please check your connection status'
                       }
                     </Text>
@@ -580,7 +699,7 @@ function App() {
             ) : (
               <Box>
                 <AnimatePresence>
-                  {packets.slice(0, 10).map((packet, index) => (
+                  {filteredPackets.slice(0, 10).map((packet, index) => (
                     <MotionBox 
                       key={`${packet.ts}-${index}`}
                       p={4}
