@@ -16,6 +16,7 @@ import FilterTags from './components/FilterTags'
 import MobileNavigation from './components/MobileNavigation'
 import MobilePacketList from './components/MobilePacketList'
 import TimelineView from './components/TimelineView'
+import AIChatInterface from './components/AIChatInterface'
 import useRealTimeStats from './hooks/useRealTimeStats'
 import { useSearch } from './hooks/useSearch'
 import { useMobileDetection } from './hooks/useMobileGestures'
@@ -629,6 +630,21 @@ function App() {
               </VStack>
             </Box>
           )
+        case 'chat':
+          return (
+            <Box h="100vh" bg="netflix.black">
+              <AIChatInterface
+                packets={filteredPackets}
+                selectedPackets={selectedPacket ? [selectedPacket] : []}
+                onPacketSelect={handlePacketSelect}
+                onAddPacketsToContext={(packets) => {
+                  console.log('Adding packets to chat context:', packets)
+                }}
+                isFullscreen={true}
+                isMobile={true}
+              />
+            </Box>
+          )
         case 'packets':
         case 'home':
         default:
@@ -852,6 +868,20 @@ function App() {
             onExport={handlePacketExport}
             onTimelineExport={handleTimelineExport}
             searchFilters={activeFilters}
+          />
+        </Box>
+
+        {/* AI Chat Interface */}
+        <Box mb={8}>
+          <AIChatInterface
+            packets={filteredPackets}
+            selectedPackets={selectedPacket ? [selectedPacket] : []}
+            onPacketSelect={handlePacketSelect}
+            onAddPacketsToContext={(packets) => {
+              console.log('Adding packets to chat context:', packets)
+            }}
+            isFullscreen={false}
+            isMobile={false}
           />
         </Box>
 

@@ -79,6 +79,13 @@ const MobileNavigation = ({
       badge: null
     },
     {
+      id: 'chat',
+      label: 'AI Chat',
+      icon: '🤖',
+      action: () => handleNavigation('chat'),
+      badge: null
+    },
+    {
       id: 'capture',
       label: isCapturing ? 'Stop Capture' : 'Start Capture',
       icon: isCapturing ? '⏹️' : '▶️',
@@ -235,7 +242,7 @@ const MobileNavigation = ({
       animate="animate"
     >
       <HStack spacing={1} justify="space-around">
-        {navigationItems.slice(0, 4).map((item) => (
+        {navigationItems.slice(0, 5).map((item) => (
           <IconButton
             key={item.id}
             aria-label={item.label}
