@@ -12,7 +12,7 @@ import {
   useDisclosure,
   Kbd
 } from '@chakra-ui/react'
-import { QuestionIcon, InfoIcon, RepeatIcon } from '@chakra-ui/icons'
+// import { QuestionIcon, InfoIcon, RepeatIcon } from '@chakra-ui/icons'
 import HelpTooltip from './HelpTooltip'
 
 /**
@@ -36,7 +36,7 @@ const HelpButton = ({ onStartTour, onResetTour }) => {
       <HelpTooltip content="Get help and view tutorials">
         <MenuButton
           as={IconButton}
-          icon={<QuestionIcon />}
+          icon={<span>❓</span>}
           variant="ghost"
           size="sm"
           aria-label="Help and tutorials"
@@ -56,7 +56,7 @@ const HelpButton = ({ onStartTour, onResetTour }) => {
         
         <MenuDivider />
         
-        <MenuItem onClick={handleTourStart} icon={<InfoIcon />}>
+        <MenuItem onClick={handleTourStart} icon={<span>ℹ️</span>}>
           <VStack align="start" spacing={1}>
             <Text fontSize="sm" fontWeight="medium">
               Start Guided Tour
@@ -67,7 +67,7 @@ const HelpButton = ({ onStartTour, onResetTour }) => {
           </VStack>
         </MenuItem>
         
-        <MenuItem onClick={handleTourReset} icon={<RepeatIcon />}>
+        <MenuItem onClick={handleTourReset} icon={<span>🔄</span>}>
           <VStack align="start" spacing={1}>
             <Text fontSize="sm" fontWeight="medium">
               Reset & Restart Tour

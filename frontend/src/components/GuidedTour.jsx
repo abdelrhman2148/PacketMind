@@ -25,9 +25,9 @@ import {
 import { 
   ChevronLeftIcon, 
   ChevronRightIcon, 
-  InfoIcon,
-  CheckCircleIcon
-} from '@chakra-ui/icons'
+  // InfoIcon,
+  // CheckCircleIcon
+// } from '@chakra-ui/icons'
 
 // Tour steps configuration
 const TOUR_STEPS = [
@@ -46,19 +46,19 @@ const TOUR_STEPS = [
           </Text>
           <List spacing={1} mt={2}>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               Capture network packets in real-time
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               Filter traffic with BPF expressions
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               Get AI explanations for suspicious packets
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               Detect traffic anomalies automatically
             </ListItem>
           </List>
@@ -166,19 +166,19 @@ const TOUR_STEPS = [
           </Text>
           <List spacing={1}>
             <ListItem fontSize="sm">
-              <ListIcon as={InfoIcon} color="cyan.500" />
+              <span style={{ color: '#0bc5ea', marginRight: '8px' }}>ℹ️</span>
               Protocol explanation and purpose
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={InfoIcon} color="cyan.500" />
+              <span style={{ color: '#0bc5ea', marginRight: '8px' }}>ℹ️</span>
               Security assessment and risk level
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={InfoIcon} color="cyan.500" />
+              <span style={{ color: '#0bc5ea', marginRight: '8px' }}>ℹ️</span>
               Recommendations for investigation
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={InfoIcon} color="cyan.500" />
+              <span style={{ color: '#0bc5ea', marginRight: '8px' }}>ℹ️</span>
               Context about source/destination
             </ListItem>
           </List>
@@ -275,23 +275,23 @@ const TOUR_STEPS = [
           </Text>
           <List spacing={2}>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               <strong>1.</strong> Select a network interface from the dropdown
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               <strong>2.</strong> Optionally add a BPF filter (or leave empty for all traffic)
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               <strong>3.</strong> Click "Apply Settings" to start capturing
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               <strong>4.</strong> Watch packets appear in real-time
             </ListItem>
             <ListItem fontSize="sm">
-              <ListIcon as={CheckCircleIcon} color="green.500" />
+              <span style={{ color: '#38a169', marginRight: '8px' }}>✅</span>
               <strong>5.</strong> Click any packet for detailed analysis
             </ListItem>
           </List>

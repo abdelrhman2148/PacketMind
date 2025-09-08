@@ -3,6 +3,7 @@ import { Box, Heading, Text } from '@chakra-ui/react'
 import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import Sparkline from './components/Sparkline'
 import ThemeToggle from './components/ThemeToggle'
+import NetflixHeader from './components/NetflixHeader'
 
 function App() {
   const [packets, setPackets] = useState([])
@@ -337,182 +338,248 @@ function App() {
     }
   }, [packets, alertFilter])
 
-  // Get connection status indicator
-  const getConnectionIndicator = () => {
-    const statusColors = {
-      connected: '#4ade80',
-      disconnected: '#ef4444',
-      reconnecting: '#f59e0b',
-      error: '#ef4444'
-    }
-    
-    const statusText = {
-      connected: 'Connected',
-      disconnected: 'Disconnected',
-      reconnecting: 'Reconnecting...',
-      error: 'Connection Error'
-    }
-    
-    return (
-      <Box display="flex" alignItems="center" gap={2} fontSize="sm">
-        <Box
-          w="8px"
-          h="8px"
-          borderRadius="50%"
-          bg={statusColors[connectionStatus]}
-        />
-        <Text>{statusText[connectionStatus]}</Text>
-      </Box>
-    )
+  // Handle navigation clicks from Netflix header
+  const handleNavigation = (navId) => {
+    console.log('Navigation clicked:', navId)
+    // Add navigation logic here as needed
+  }
+
+  // Handle settings button click
+  const handleSettings = () => {
+    console.log('Settings clicked')
+    // Add settings modal logic here
+  }
+
+  // Handle about button click
+  const handleAbout = () => {
+    console.log('About clicked')
+    // Add about modal logic here
   }
 
   return (
-    <Box minH="100vh" bg={{ base: 'white', _dark: '#1a1a1a' }} color={{ base: 'black', _dark: 'white' }}>
-      {/* Header */}
-      <Box
-        as="header"
-        p={4}
-        bg={{ base: 'gray.50', _dark: '#2d2d2d' }}
-        borderBottom="1px solid"
-        borderColor={{ base: 'gray.200', _dark: '#404040' }}
-      >
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Heading size="lg" color={{ base: 'blue.600', _dark: '#61dafb' }}>
-            Wireshark+ Web Dashboard
-          </Heading>
-          <Box display="flex" alignItems="center" gap={4}>
-            {getConnectionIndicator()}
-            <Text fontSize="sm">Packets: {packets.length}</Text>
-            <Text fontSize="sm">Rate: {packetRate} pps</Text>
-            <Sparkline data={trafficHistory} width={120} height={30} />
-            <ThemeToggle />
-          </Box>
-        </Box>
-      </Box>
+    <Box minH="100vh" bg="netflix.black" color="netflix.white">
+      {/* Netflix-Style Header */}
+      <NetflixHeader
+        connectionStatus={connectionStatus}
+        currentInterface={currentSettings.iface || selectedInterface}
+        packetCount={packets.length}
+        onNavigation={handleNavigation}
+        onSettings={handleSettings}
+        onAbout={handleAbout}
+      />
 
-      {/* Simple demonstration of Chakra UI theming */}
-      <Box p={4} textAlign="center">
-        <Heading size="md" mb={4} color={{ base: 'gray.700', _dark: 'gray.200' }}>
-          Modern UI with Chakra UI & Theme System
-        </Heading>
-        <Text mb={4} color={{ base: 'gray.600', _dark: 'gray.400' }}>
-          This demonstrates the integration of Chakra UI with dark/light mode theming.
-          The theme toggle in the header switches between modes.
-        </Text>
-        <Box 
-          p={4} 
-          bg={{ base: 'blue.50', _dark: 'blue.900' }} 
-          borderRadius="lg" 
-          border="1px solid" 
-          borderColor={{ base: 'blue.200', _dark: 'blue.700' }}
-          maxW="md"
-          mx="auto"
-        >
-          <Text fontWeight="600" color={{ base: 'blue.800', _dark: 'blue.200' }}>
-            Theme-aware Component
-          </Text>
-          <Text fontSize="sm" color={{ base: 'blue.600', _dark: 'blue.300' }}>
-            This box changes colors based on the current theme mode.
-          </Text>
-        </Box>
-      </Box>
+      {/* Main Content Area with Netflix Styling */}
+      <Box pt={4} px={{ base: 4, md: 8 }}>
 
-      {/* Basic packet display */}
-      <Box p={4}>
-        <Heading size="md" mb={4}>Live Packets ({packets.length})</Heading>
-        <Box 
-          bg={{ base: 'white', _dark: '#2d2d2d' }} 
-          borderRadius="lg" 
-          border="1px solid" 
-          borderColor={{ base: 'gray.200', _dark: '#404040' }}
-          p={4}
-          maxH="400px"
-          overflowY="auto"
-        >
-          {packets.length === 0 ? (
-            <Text color="gray.500" textAlign="center" py={8}>
-              {connectionStatus === 'connected' 
-                ? 'Waiting for packets...' 
-                : 'Not connected to packet stream'
-              }
-            </Text>
-          ) : (
-            <Box>
-              {packets.slice(0, 10).map((packet, index) => (
-                <Box 
-                  key={index}
-                  p={3}
-                  mb={2}
-                  bg={{ base: 'gray.50', _dark: '#374151' }}
-                  borderRadius="md"
-                  cursor="pointer"
-                  onClick={() => handlePacketSelect(packet)}
-                  border={selectedPacket === packet ? '2px solid' : '1px solid'}
-                  borderColor={selectedPacket === packet ? 'blue.500' : 'transparent'}
-                  _hover={{ bg: { base: 'gray.100', _dark: '#4b5563' } }}
-                >
-                  <Text fontSize="sm" fontWeight="600">
-                    {packet.src} → {packet.dst} ({packet.proto})
-                  </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    {formatTimestamp(packet.ts)} | Length: {packet.length} bytes
-                  </Text>
-                </Box>
-              ))}
-            </Box>
-          )}
-        </Box>
-      </Box>
-
-      {/* Selected packet details */}
-      {selectedPacket && (
-        <Box p={4}>
-          <Heading size="md" mb={4}>Packet Details</Heading>
-          <Box 
-            bg={{ base: 'white', _dark: '#2d2d2d' }} 
-            borderRadius="lg" 
-            border="1px solid" 
-            borderColor={{ base: 'gray.200', _dark: '#404040' }}
-            p={4}
+        {/* Live Packets Section */}
+        <Box mb={8}>
+          <Heading 
+            size="lg" 
+            mb={6} 
+            color="netflix.white"
+            fontWeight="bold"
+            letterSpacing="-0.025em"
           >
-            <Text mb={2}><strong>Summary:</strong> {selectedPacket.summary}</Text>
-            <button
-              onClick={handleExplainPacket}
-              disabled={aiLoading}
-              style={{
-                padding: '8px 16px',
+            Live Network Traffic
+          </Heading>
+          <Box 
+            bg="rgba(31, 31, 31, 0.95)"
+            borderRadius="16px"
+            border="1px solid"
+            borderColor="rgba(255, 255, 255, 0.1)"
+            p={6}
+            maxH="500px"
+            overflowY="auto"
+            boxShadow="netflix"
+            backdropFilter="blur(20px)"
+            css={{
+              '&::-webkit-scrollbar': {
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'rgba(10, 10, 10, 0.3)',
                 borderRadius: '4px',
-                border: 'none',
-                backgroundColor: '#10b981',
-                color: 'white',
-                cursor: aiLoading ? 'not-allowed' : 'pointer',
-                opacity: aiLoading ? 0.6 : 1,
-                marginTop: '8px'
-              }}
-            >
-              {aiLoading ? 'Analyzing...' : 'Explain Packet'}
-            </button>
-            
-            {aiResponse && (
-              <Box 
-                mt={4}
-                p={3}
-                bg={aiResponse.error ? { base: 'red.50', _dark: 'rgba(239, 68, 68, 0.1)' } : { base: 'green.50', _dark: 'rgba(16, 185, 129, 0.1)' }}
-                borderRadius="md"
-                border="1px solid"
-                borderColor={aiResponse.error ? 'red.200' : 'green.200'}
-              >
-                <Text fontWeight="600" mb={2} color={aiResponse.error ? 'red.700' : 'green.700'}>
-                  AI Analysis {aiResponse.is_mock && '(Mock)'} {aiResponse.error && '- Error'}
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                background: 'rgba(255, 255, 255, 0.3)',
+              },
+            }}
+          >
+            {packets.length === 0 ? (
+              <Box textAlign="center" py={12}>
+                <Text 
+                  color="netflix.silver" 
+                  fontSize="lg" 
+                  mb={2}
+                  fontWeight="medium"
+                >
+                  {connectionStatus === 'connected' 
+                    ? 'Monitoring network traffic...' 
+                    : 'Establishing connection to packet stream'
+                  }
                 </Text>
-                <Text fontSize="sm" whiteSpace="pre-wrap">
-                  {aiResponse.explanation}
+                <Text color="rgba(179, 179, 179, 0.7)" fontSize="sm">
+                  {connectionStatus === 'connected' 
+                    ? 'Packets will appear here in real-time' 
+                    : 'Please check your connection status'
+                  }
                 </Text>
+              </Box>
+            ) : (
+              <Box>
+                {packets.slice(0, 10).map((packet, index) => (
+                  <Box 
+                    key={index}
+                    p={4}
+                    mb={3}
+                    bg={selectedPacket === packet 
+                      ? 'rgba(6, 182, 212, 0.1)' 
+                      : 'rgba(255, 255, 255, 0.05)'
+                    }
+                    borderRadius="12px"
+                    cursor="pointer"
+                    onClick={() => handlePacketSelect(packet)}
+                    border="1px solid"
+                    borderColor={selectedPacket === packet 
+                      ? 'rgba(6, 182, 212, 0.5)' 
+                      : 'rgba(255, 255, 255, 0.1)'
+                    }
+                    transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                    _hover={{ 
+                      bg: selectedPacket === packet 
+                        ? 'rgba(6, 182, 212, 0.15)' 
+                        : 'rgba(255, 255, 255, 0.08)',
+                      borderColor: 'rgba(6, 182, 212, 0.3)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
+                    <Text 
+                      fontSize="sm" 
+                      fontWeight="600"
+                      color="netflix.white"
+                      mb={2}
+                    >
+                      {packet.src} → {packet.dst} ({packet.proto})
+                    </Text>
+                    <Text 
+                      fontSize="xs" 
+                      color="netflix.silver"
+                      opacity={0.8}
+                    >
+                      {formatTimestamp(packet.ts)} | Length: {packet.length} bytes
+                    </Text>
+                  </Box>
+                ))}
               </Box>
             )}
           </Box>
         </Box>
-      )}
+
+        {/* Selected Packet Details */}
+        {selectedPacket && (
+          <Box>
+            <Heading 
+              size="lg" 
+              mb={6} 
+              color="netflix.white"
+              fontWeight="bold"
+              letterSpacing="-0.025em"
+            >
+              Packet Analysis
+            </Heading>
+            <Box 
+              bg="rgba(31, 31, 31, 0.95)"
+              borderRadius="16px"
+              border="1px solid"
+              borderColor="rgba(255, 255, 255, 0.1)"
+              p={6}
+              boxShadow="netflix"
+              backdropFilter="blur(20px)"
+            >
+              <Text 
+                mb={4}
+                color="netflix.white"
+                fontSize="md"
+                fontWeight="medium"
+              >
+                <Text as="span" color="wireshark.accent" fontWeight="bold">
+                  Summary:
+                </Text>{' '}
+                {selectedPacket.summary}
+              </Text>
+              
+              <Box
+                as="button"
+                onClick={handleExplainPacket}
+                disabled={aiLoading}
+                px={6}
+                py={3}
+                borderRadius="8px"
+                bg={aiLoading 
+                  ? 'rgba(229, 9, 20, 0.5)' 
+                  : 'linear-gradient(135deg, #E50914 0%, #DC143C 50%, #B20710 100%)'
+                }
+                color="netflix.white"
+                fontWeight="semibold"
+                cursor={aiLoading ? 'not-allowed' : 'pointer'}
+                opacity={aiLoading ? 0.6 : 1}
+                transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                border="none"
+                boxShadow="0 4px 15px rgba(229, 9, 20, 0.3)"
+                _hover={!aiLoading ? {
+                  transform: 'translateY(-2px) scale(1.02)',
+                  boxShadow: '0 8px 25px rgba(229, 9, 20, 0.5)'
+                } : {}}
+                _active={!aiLoading ? {
+                  transform: 'translateY(0) scale(1)'
+                } : {}}
+              >
+                {aiLoading ? 'Analyzing with AI...' : 'Explain with AI'}
+              </Box>
+              
+              {aiResponse && (
+                <Box 
+                  mt={6}
+                  p={4}
+                  bg={aiResponse.error 
+                    ? 'rgba(239, 68, 68, 0.1)' 
+                    : 'rgba(16, 185, 129, 0.1)'
+                  }
+                  borderRadius="12px"
+                  border="1px solid"
+                  borderColor={aiResponse.error 
+                    ? 'rgba(239, 68, 68, 0.3)' 
+                    : 'rgba(16, 185, 129, 0.3)'
+                  }
+                  backdropFilter="blur(10px)"
+                >
+                  <Text 
+                    fontWeight="600" 
+                    mb={3} 
+                    color={aiResponse.error ? '#FCA5A5' : '#6EE7B7'}
+                    fontSize="md"
+                  >
+                    AI Analysis {aiResponse.is_mock && '(Demo Mode)'} {aiResponse.error && '- Analysis Failed'}
+                  </Text>
+                  <Text 
+                    fontSize="sm" 
+                    whiteSpace="pre-wrap"
+                    color="netflix.white"
+                    lineHeight="1.6"
+                  >
+                    {aiResponse.explanation}
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        )}
+      </Box>
     </Box>
   )
 }

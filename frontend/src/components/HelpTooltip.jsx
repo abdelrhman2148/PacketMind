@@ -8,7 +8,7 @@ import {
   Code,
   Divider
 } from '@chakra-ui/react'
-import { InfoIcon } from '@chakra-ui/icons'
+// import { InfoIcon } from '@chakra-ui/icons'
 
 // Protocol information database
 const PROTOCOL_INFO = {
@@ -332,12 +332,14 @@ const HelpTooltip = ({
   const wrappedChildren = showIcon ? (
     <HStack spacing={1} align="center">
       {children}
-      <InfoIcon 
-        boxSize={3} 
-        color="gray.500" 
-        _hover={{ color: 'blue.400' }}
-        {...iconProps}
-      />
+      <span 
+        style={{ 
+          fontSize: '12px', 
+          color: '#718096'
+        }}
+      >
+        ℹ️
+      </span>
     </HStack>
   ) : children
 
