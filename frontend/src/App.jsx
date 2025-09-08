@@ -4,6 +4,8 @@ import { explainPacket, getInterfaces, updateCaptureSettings } from './api'
 import Sparkline from './components/Sparkline'
 import ThemeToggle from './components/ThemeToggle'
 import NetflixHeader from './components/NetflixHeader'
+import NetflixHeroSection from './components/NetflixHeroSection'
+import useRealTimeStats from './hooks/useRealTimeStats'
 
 function App() {
   const [packets, setPackets] = useState([])
@@ -26,6 +28,9 @@ function App() {
   const reconnectTimeoutRef = useRef(null)
   const packetCountRef = useRef(0)
   const lastRateUpdateRef = useRef(Date.now())
+
+  // Initialize real-time stats hook
+  const realTimeStats = useRealTimeStats(packets, connectionStatus)
 
   // WebSocket connection management with automatic reconnection
   const connectWebSocket = () => {
@@ -356,6 +361,28 @@ function App() {
     // Add about modal logic here
   }
 
+  // Handle hero section actions
+  const handleStartCapture = async () => {
+    console.log('Start capture clicked')
+    // Add start capture logic here
+    if (selectedInterface) {
+      await handleSettingsUpdate()
+    }
+  }
+
+  const handleStopCapture = () => {
+    console.log('Stop capture clicked')
+    // Add stop capture logic here
+    if (wsRef.current) {
+      wsRef.current.close()
+    }
+  }
+
+  const handleOpenAnalytics = () => {
+    console.log('Analytics clicked')
+    // Add analytics view logic here
+  }
+
   return (
     <Box minH="100vh" bg="netflix.black" color="netflix.white">
       {/* Netflix-Style Header */}
@@ -370,6 +397,20 @@ function App() {
 
       {/* Main Content Area with Netflix Styling */}
       <Box pt={4} px={{ base: 4, md: 8 }}>
+        {/* Netflix-Style Hero Section */}
+        <NetflixHeroSection
+          connectionStatus={connectionStatus}
+          packetCount={packets.length}
+          packetRate={realTimeStats.currentRate}
+          currentInterface={currentSettings.iface || selectedInterface}
+          isCapturing={realTimeStats.isCapturing}
+          onStartCapture={handleStartCapture}
+          onStopCapture={handleStopCapture}
+          onOpenSettings={handleSettings}
+          onOpenAnalytics={handleOpenAnalytics}
+          trafficHistory={realTimeStats.trafficHistory}
+          alerts={alerts}
+        />
 
         {/* Live Packets Section */}
         <Box mb={8}>
