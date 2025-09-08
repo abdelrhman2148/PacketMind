@@ -6,11 +6,15 @@ import ThemeToggle from './components/ThemeToggle'
 import NetflixHeader from './components/NetflixHeader'
 import NetflixHeroSection from './components/NetflixHeroSection'
 import NetflixPacketCards from './components/NetflixPacketCards'
+import NetflixPacketModal from './components/NetflixPacketModal'
+import PacketDetailsSidebar from './components/PacketDetailsSidebar'
 import useRealTimeStats from './hooks/useRealTimeStats'
 
 function App() {
   const [packets, setPackets] = useState([])
   const [selectedPacket, setSelectedPacket] = useState(null)
+  const [isPacketModalOpen, setIsPacketModalOpen] = useState(false)
+  const [isPacketSidebarOpen, setIsPacketSidebarOpen] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState('disconnected')
   const [alerts, setAlerts] = useState([])
   const [aiResponse, setAiResponse] = useState(null)
@@ -267,6 +271,61 @@ function App() {
   const handlePacketSelect = (packet) => {
     setSelectedPacket(packet)
     setAiResponse(null)
+    setIsPacketModalOpen(true)
+  }
+
+  // Handle packet selection for sidebar
+  const handlePacketSelectSidebar = (packet) => {
+    setSelectedPacket(packet)
+    setAiResponse(null)
+    setIsPacketSidebarOpen(true)
+  }
+
+  // Handle packet filter creation
+  const handlePacketFilter = (packet) => {
+    if (!packet) return
+    
+    // Create BPF filter based on packet
+    let filter = ''
+    if (packet.src && packet.dst) {
+      filter = `host ${packet.src} or host ${packet.dst}`
+    }
+    if (packet.proto) {
+      filter = filter ? `${filter} and ${packet.proto.toLowerCase()}` : packet.proto.toLowerCase()
+    }
+    if (packet.sport || packet.dport) {
+      const port = packet.sport || packet.dport
+      filter = filter ? `${filter} and port ${port}` : `port ${port}`
+    }
+    
+    setBpfFilter(filter)
+    console.log('Created filter:', filter)
+  }
+
+  // Handle packet export
+  const handlePacketExport = (packet) => {
+    if (!packet) return
+    
+    const exportData = {
+      timestamp: new Date(packet.ts * 1000).toISOString(),
+      source: packet.src,
+      destination: packet.dst,
+      protocol: packet.proto,
+      sourcePort: packet.sport,
+      destinationPort: packet.dport,
+      length: packet.length,
+      summary: packet.summary
+    }
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `packet_${packet.ts}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   // Handle AI explanation request
@@ -423,15 +482,19 @@ function App() {
 
         {/* Live Packets Section */}
         <Box mb={8}>
-          <Heading 
-            size="lg" 
-            mb={6} 
-            color="netflix.white"
-            fontWeight="bold"
-            letterSpacing="-0.025em"
-          >
-            Live Network Traffic
-          </Heading>
+          <VStack align="stretch" spacing={4} mb={6}>
+            <Heading 
+              size="lg" 
+              color="netflix.white"
+              fontWeight="bold"
+              letterSpacing="-0.025em"
+            >
+              Live Network Traffic
+            </Heading>
+            <Text color="netflix.silver" fontSize="sm">
+              💡 Click a packet to open detailed modal, double-click for sidebar view
+            </Text>
+          </VStack>
           <Box 
             bg="rgba(31, 31, 31, 0.95)"
             borderRadius="16px"
@@ -493,6 +556,7 @@ function App() {
                     borderRadius="12px"
                     cursor="pointer"
                     onClick={() => handlePacketSelect(packet)}
+                    onDoubleClick={() => handlePacketSelectSidebar(packet)}
                     border="1px solid"
                     borderColor={selectedPacket === packet 
                       ? 'rgba(6, 182, 212, 0.5)' 
@@ -507,6 +571,7 @@ function App() {
                       transform: 'translateY(-2px)',
                       boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)'
                     }}
+                    title="Click to open modal, double-click for sidebar"
                   >
                     <Text 
                       fontSize="sm" 
@@ -629,6 +694,46 @@ function App() {
             </Box>
           </Box>
         )}
+        
+        {/* Netflix-Style Packet Modal */}
+        <NetflixPacketModal
+          isOpen={isPacketModalOpen}
+          onClose={() => setIsPacketModalOpen(false)}
+          packet={selectedPacket}
+          onExplain={handleExplainPacket}
+          onFilter={handlePacketFilter}
+          onExport={handlePacketExport}
+          aiResponse={aiResponse}
+          aiLoading={aiLoading}
+          relatedPackets={packets.filter(p => 
+            p !== selectedPacket && 
+            selectedPacket && (
+              p.src === selectedPacket.src || 
+              p.dst === selectedPacket.dst || 
+              p.proto === selectedPacket.proto
+            )
+          ).slice(0, 5)}
+        />
+        
+        {/* Packet Details Sidebar */}
+        <PacketDetailsSidebar
+          isOpen={isPacketSidebarOpen}
+          onClose={() => setIsPacketSidebarOpen(false)}
+          packet={selectedPacket}
+          onExplain={handleExplainPacket}
+          onFilter={handlePacketFilter}
+          onExport={handlePacketExport}
+          aiResponse={aiResponse}
+          aiLoading={aiLoading}
+          relatedPackets={packets.filter(p => 
+            p !== selectedPacket && 
+            selectedPacket && (
+              p.src === selectedPacket.src || 
+              p.dst === selectedPacket.dst || 
+              p.proto === selectedPacket.proto
+            )
+          ).slice(0, 5)}
+        />
       </Box>
     </Box>
   )
